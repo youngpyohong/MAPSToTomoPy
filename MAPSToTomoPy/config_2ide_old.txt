@@ -1,0 +1,7 @@
+### configuration file for bnp.
+Image_Tag:
+exchange
+Theta position from extra pas as csv:
+99
+
+###
