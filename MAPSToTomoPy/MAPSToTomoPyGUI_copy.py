@@ -674,14 +674,23 @@ class Example(QtGui.QMainWindow):
             self.projViewControl.btn2.clicked.connect(self.alignHotSpotPos4)
             self.projViewControl.combo2.currentIndexChanged.connect(self.hotSpotSetChanged)
             self.projViewControl.show()
+
+            self.projView.sld.setRange(0,self.projections-1)
+            self.projView.sld.valueChanged.connect(self.projView.lcd.display)
+            self.projView.sld.valueChanged.connect(self.hotSpotProjChanged)
             self.testtest=pg.ImageView()
-######### 
+#########
       def hotspotProjChanged(self):
             1
+      def hotSpotProjChanged(self):
+            self.projView.view.hotSpotNumb=self.projView.sld.value()
+            self.projView.view.projView.setImage(self.data[self.projViewElement,self.projView.view.hotSpotNumb,:,:])
+            self.projView.view.setScale(1,1)
 #########
+      
       def boxSizeChange(self):
             self.boxSize=self.projViewControl.sld.value()/2*2
-            self.projView.view.ROI.setPos([self.projView.view.projView.iniX-self.boxSize/2,self.projView.view.projView.iniY-self.boxSize/2])
+            self.projView.view.ROI.setPos([self.projView.view.projView.iniY-self.boxSize/2,-(self.projView.view.projView.iniX+self.boxSize/2)])
             self.projView.view.ROI.setSize([self.boxSize,self.boxSize])
             self.projView.view.xSize=self.boxSize
             self.projView.view.ySize=self.boxSize
@@ -1012,6 +1021,11 @@ class Example(QtGui.QMainWindow):
             self.imgProcessControl.cutBtn.clicked.connect(self.ipCut)
             self.imgProcessControl.gaussian33Btn.clicked.connect(self.gauss33)
             self.imgProcessControl.gaussian33Btn.clicked.connect(self.gauss55)
+
+            self.imgProcess.sld.setRange(0,self.projections-1)
+            self.imgProcess.sld.valueChanged.connect(self.imgProcess.lcd.display)
+            self.imgProcess.sld.valueChanged.connect(self.imgProcessProjChanged)
+            self.testtest=pg.ImageView()
             
 ##            self.projViewControl.sld.setValue(20)
 ##            self.projViewControl.sld.setRange(0,self.x/2)
@@ -1023,6 +1037,12 @@ class Example(QtGui.QMainWindow):
 ##            self.projViewControl.combo2.currentIndexChanged.connect(self.hotSpotSetChanged)
 ##            self.projViewControl.show()
 ##            self.testtest=pg.ImageView()
+
+      def imgProcessProjChanged(self):
+            element=self.imgProcessControl.combo1.currentIndex()
+            self.imgProcessImg=self.data[element, self.imgProcess.sld.value(), : ,:]
+            self.imgProcess.view.projView.setImage(self.imgProcessImg)
+            
       def imgProcessProjShow(self):
             element=self.imgProcessControl.combo1.currentIndex()
             projection = self.imgProcessControl.combo2.currentIndex()
@@ -1031,10 +1051,10 @@ class Example(QtGui.QMainWindow):
 
 
       def imgProcessBoxSizeChange(self):
-            xSize=self.imgProcessControl.xSize
-            ySize=self.imgProcessControl.ySize
+            xSize=self.imgProcessControl.xSize/2*2
+            ySize=self.imgProcessControl.ySize/2*2
             self.imgProcess.view.ROI.setSize([xSize, ySize])
-            self.imgProcess.view.ROI.setPos([int(round(self.imgProcess.view.projView.iniX))-xSize/2,int(round(self.imgProcess.view.projView.iniY))-ySize/2])
+            self.imgProcess.view.ROI.setPos([-int(round(self.imgProcess.view.projView.iniY))-ySize/2,int(round(self.imgProcess.view.projView.iniX))-xSize/2])
             self.imgProcess.view.xSize=xSize
             self.imgProcess.view.ySize=ySize
       def ipBg(self):
@@ -1104,10 +1124,10 @@ class Example(QtGui.QMainWindow):
               h /= sumh
             return h
       def gauss33(self):
-            result=gauss2D(shape=(3,3),sigma=1.3)
+            result=self.gauss2D(shape=(3,3),sigma=1.3)
             return result
       def gauss55(self):
-            result=gauss2D(shape=(5,5),sigma=1.3)
+            result=self.gauss2D(shape=(5,5),sigma=1.3)
             return result
             
 #==========================
@@ -1977,12 +1997,7 @@ class imageProcess(QtGui.QWidget):
             self.xSizeTxt = QtGui.QLineEdit(str(self.xSize))
             self.ySizeTxt = QtGui.QLineEdit(str(self.ySize))
 
-            self.xSlider = QtGui.QSlider(QtCore.Qt.Horizontal, self)
-            self.ySlider = QtGui.QSlider(QtCore.Qt.Horizontal, self)
 
-            self.xSlider.valueChanged.connect(self.changeXSize)
-
-            self.ySlider.valueChanged.connect(self.changeYSize)
 
             self.combo1 = QtGui.QComboBox()
             self.combo2 = QtGui.QComboBox()
@@ -2002,11 +2017,9 @@ class imageProcess(QtGui.QWidget):
 
             vb1=QtGui.QVBoxLayout()
             vb1.addLayout(hb1)
-            vb1.addWidget(self.xSlider)
             vb1.addLayout(hb2)
             vb2=QtGui.QVBoxLayout()
             vb2.addLayout(hb3)
-            vb2.addWidget(self.ySlider)
             vb2.addLayout(hb4)
             xSG= QtGui.QGroupBox("x Size")
             xSG.setLayout(vb1)
@@ -2072,6 +2085,7 @@ class IView(pg.ImageView):
         
       def initUI(self):
             self.show()
+            self.imageItem.rotate(-90)
 
       def keyPressEvent(self, ev):
             if ev.key() == QtCore.Qt.Key_M:
@@ -2142,7 +2156,8 @@ class IView2(pg.GraphicsLayoutWidget):
 
             self.p1=self.addPlot()
             
-            self.projViewpg.ImageItem()
+            self.projView=pg.ImageItem()
+            self.projView.rotate(-90)
             self.projView.iniX=0
             self.projView.iniY=0
             self.ROI = pg.ROI([self.projView.iniX,self.projView.iniY],[20,20])
@@ -2154,7 +2169,7 @@ class IView2(pg.GraphicsLayoutWidget):
 ##            self.addItem(self.hist)
       
       def mouseReleaseEvent(self,ev):
-            self.ROI.setPos([self.projView.iniX-self.xSize/2,self.projView.iniY-self.ySize/2])
+            self.ROI.setPos([self.projView.iniY-self.ySize/2,-self.projView.iniX-self.xSize/2,])
 
       def keyPressEvent(self, ev):
 ##            if ev.key() == QtCore.Qt.Key_M:
@@ -2205,11 +2220,20 @@ class IView3(QtGui.QWidget):
       def initUI(self):
             self.show()
 
+            hb2=QtGui.QHBoxLayout()
             hb1=QtGui.QHBoxLayout()
+            vb1=QtGui.QVBoxLayout()
             self.view=IView2()
+            self.sld=QtGui.QSlider(QtCore.Qt.Horizontal, self)
+            self.lcd=QtGui.QLCDNumber(self)
             self.hist=pg.HistogramLUTWidget()
             self.hist.setImageItem(self.view.projView)
-            hb1.addWidget(self.view)
+
+            hb2.addWidget(self.lcd)
+            hb2.addWidget(self.sld)
+            vb1.addWidget(self.view)
+            vb1.addLayout(hb2)
+            hb1.addLayout(vb1)
             hb1.addWidget(self.hist,10)
             self.setLayout(hb1)
 

@@ -1104,10 +1104,10 @@ class Example(QtGui.QMainWindow):
               h /= sumh
             return h
       def gauss33(self):
-            result=gauss2D(shape=(3,3),sigma=1.3)
+            result=self.gauss2D(shape=(3,3),sigma=1.3)
             return result
       def gauss55(self):
-            result=gauss2D(shape=(5,5),sigma=1.3)
+            result=self.gauss2D(shape=(5,5),sigma=1.3)
             return result
             
 #==========================
@@ -2072,6 +2072,7 @@ class IView(pg.ImageView):
         
       def initUI(self):
             self.show()
+            self.imageItem.rotate(-90)
 
       def keyPressEvent(self, ev):
             if ev.key() == QtCore.Qt.Key_M:
@@ -2142,7 +2143,8 @@ class IView2(pg.GraphicsLayoutWidget):
 
             self.p1=self.addPlot()
             
-            self.projViewpg.ImageItem()
+            self.projView=pg.ImageItem()
+            self.projView.rotate(-90)
             self.projView.iniX=0
             self.projView.iniY=0
             self.ROI = pg.ROI([self.projView.iniX,self.projView.iniY],[20,20])
@@ -2205,11 +2207,19 @@ class IView3(QtGui.QWidget):
       def initUI(self):
             self.show()
 
+            hb2=QtGui.QHBoxLayout()
             hb1=QtGui.QHBoxLayout()
+            vb1=QtGui.QVBoxLayout()
             self.view=IView2()
+            self.slider=QtGui.QSlider(QtCore.Qt.Horizontal, self)
+            self.lcd=QtGui.QLCDNumber(self)
             self.hist=pg.HistogramLUTWidget()
             self.hist.setImageItem(self.view.projView)
-            hb1.addWidget(self.view)
+            vb1.addWidget(self.view)
+            hb2.addWidget(self.lcd)
+            hb2.addWidget(self.slider)
+            vb1.addLayout(hb2)
+            hb1.addLayout(vb1)
             hb1.addWidget(self.hist,10)
             self.setLayout(hb1)
 
