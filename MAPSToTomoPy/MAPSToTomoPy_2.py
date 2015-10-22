@@ -217,11 +217,10 @@ class Example(QtGui.QMainWindow):
             toolbar.addAction(convertAction)
             toolbar.addAction(saveSinogramAction)
             toolbar.setVisible(False)
-            
-            add = 0
+  
+            add =0
             if platform == "win32":
                 add = 50
-  
             self.setGeometry(add,add, 1100+add,500+add)
             self.setWindowTitle('Maps_To_Tomopy')    
             self.show()
@@ -1264,6 +1263,7 @@ class Example(QtGui.QMainWindow):
             beta=float(self.recon.beta.text())
             delta=float(self.recon.delta.text())
             num_iter =int(self.recon.iters.text())
+            print beta, delta, num_iter
             self.theta=self.theta*np.pi/180
             print self.theta
 
@@ -1280,7 +1280,7 @@ class Example(QtGui.QMainWindow):
             elif self.recon.method.currentIndex()==3:
                   print "you are here"
                   self.rec = tomopy.recon(self.recData, self.theta, algorithm='pml_hybrid', center=np.array(self.recCenter, dtype=float32),
-                                     reg_par=np.array([100,1],dtype=np.float32), num_iter=num_iter, emission=True)
+                                     reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
 
             a=time.time()
             print a-b
@@ -1398,7 +1398,6 @@ class Example(QtGui.QMainWindow):
             try:  
                   fileNametemp = QtGui.QFileDialog.getOpenFileNames(self, "Open File",
                                                                 QtCore.QDir.currentPath(),filter="h5 (*.h5)")
-                  global RH2
                   self.fileNames=str(fileNametemp.join("\n")).split("\n")
                   if self.fileNames == [""]:
                         raise IndexError
