@@ -3,6 +3,7 @@
 
 
 import sys
+from sys import platform
 import tkFileDialog
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
@@ -216,8 +217,11 @@ class Example(QtGui.QMainWindow):
             toolbar.addAction(convertAction)
             toolbar.addAction(saveSinogramAction)
             toolbar.setVisible(False)
-  
-            self.setGeometry(0,0, 1100,500)
+
+            add=0
+            if platform == "win32":
+                  add=50
+            self.setGeometry(add,add, 1100+add,500+add)
             self.setWindowTitle('Maps_To_Tomopy')    
             self.show()
 
@@ -1390,9 +1394,9 @@ class Example(QtGui.QMainWindow):
             try:  
                   fileNametemp = QtGui.QFileDialog.getOpenFileNames(self, "Open File",
                                                                 QtCore.QDir.currentPath(),filter="h5 (*.h5)")
-                  global RH2
+ 
                   self.fileNames=str(fileNametemp.join("\n")).split("\n")
-                  if not self.fileNames:
+                  if self.fileNames == [""]:
                         raise IndexError
                   RH2=self.fileNames
                   self.selectFiles()
