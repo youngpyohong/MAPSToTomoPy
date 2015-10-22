@@ -1264,22 +1264,21 @@ class Example(QtGui.QMainWindow):
             delta=float(self.recon.delta.text())
             num_iter =int(self.recon.iters.text())
             print beta, delta, num_iter
-            self.theta=self.theta*np.pi/180
-            print self.theta
+
 
             print "working fine"
             b=time.time()
             if self.recon.method.currentIndex()==0:
-                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='mlem', center=np.array(self.recCenter, dtype=float32), num_iter=num_iter, emission=True)
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='mlem', center=np.array(self.recCenter, dtype=float32), num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==1:
                   self.rec = tomopy.recon(self.recData, self.theta, algorithm='gridrec',
                                      emission=True)
             elif self.recon.method.currentIndex()==2:
-                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='art',
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='art',
                                      num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==3:
                   print "you are here"
-                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='pml_hybrid', center=np.array(self.recCenter, dtype=float32),
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='pml_hybrid', center=np.array(self.recCenter, dtype=float32),
                                      reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
 
             a=time.time()
