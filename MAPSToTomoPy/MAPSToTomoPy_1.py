@@ -10,8 +10,9 @@ import numpy as np
 from pylab import *
 from pylab import *
 import scipy
-from scipy import ndimage,optimize
+from scipy import ndimage,optimize, signal
 import scipy.ndimage.interpolation as spni
+from scipy.signal import *
 from skimage.feature import match_template
 from PIL import Image
 import os
@@ -21,7 +22,7 @@ import pyqtgraph as pg
 from PySide import QtGui, QtCore
 from pyqtgraph import QtGui, QtCore
 import h5py
-#import tomopy
+import tomopy
 import time
 #import subpixelshift
 #from subpixelshift import *
@@ -125,6 +126,9 @@ class Example(QtGui.QMainWindow):
             test1Action = QtGui.QAction("Test 1", self)
             test1Action.triggered.connect(self.test1)
 
+            wienerAction = QtGui.QAction("Wiener", self)
+            wienerAction.triggered.connect(self.ipWiener)
+
             ###
             self.frame = QtGui.QFrame()
             self.vl = QtGui.QVBoxLayout()
@@ -133,12 +137,13 @@ class Example(QtGui.QMainWindow):
             
             self.tab_widget = QtGui.QTabWidget()
             #self.tab_widget.addTab(self.createMessageWidget(), unicode("Message"))
-            self.tab_widget.addTab(self.createProjWidget(), unicode("Projections"))
+            self.tab_widget.addTab(self.createImageProcessWidget(), unicode("Image Process"))
+            self.tab_widget.addTab(self.createSaveHotspotWidget(),unicode("Save Hotspot"))
             self.tab_widget.addTab(self.createSinoWidget(), unicode("Sinogram"))
             self.tab_widget.addTab(self.createReconWidget(), unicode("Reconstruction"))
             #self.tab_widget.addTab(self.sinoGroup, unicode("Sinogram"))
-            self.tab_widget.addTab(self.createSaveHotspotWidget(),unicode("Save Hotspot"))
-            self.tab_widget.addTab(self.createImageProcessWidget(), unicode("Image Process"))
+
+
 
             self.tab_widget.currentChanged.connect(self.callW2)
 
@@ -184,6 +189,7 @@ class Example(QtGui.QMainWindow):
             self.alignmentMenu.addAction(alignFromTextAction)
             self.alignmentMenu.addAction(saveHotSpotPosAction)
             self.alignmentMenu.addAction(alignHotSpotPosAction)
+            self.alignmentMenu.addAction(wienerAction)
             self.alignmentMenu.addAction(restoreAction)
             self.alignmentMenu.setDisabled(True)
 
@@ -233,9 +239,9 @@ class Example(QtGui.QMainWindow):
       def callW2(self):
             self.manual=Manual()
             self.manual.show()
-            if self.tab_widget.currentIndex()==3:
+            if self.tab_widget.currentIndex()==1:
                   self.manual.setVisible(True)
-            if self.tab_widget.currentIndex()!=3:
+            if self.tab_widget.currentIndex()!=1:
                   self.manual.setVisible(False)
 #############################
 ## creating tab
@@ -289,8 +295,8 @@ class Example(QtGui.QMainWindow):
 
       def createSinoWidget(self):
             self.sino = QSelect2()
-            self.sinoView = IView3()
-            self.sinoView.view.ROI.setVisible(False)
+            self.sinoView = IView()
+
 
             sinoBox = QtGui.QHBoxLayout()
             sinoBox.addWidget(self.sino)
@@ -303,7 +309,8 @@ class Example(QtGui.QMainWindow):
       def createReconWidget(self):
             self.recon = QSelect3()
             self.recon.sld.setVisible(False)
-            self.reconView = pg.ImageView()
+            self.reconView = IView3()
+            self.reconView.view.ROI.setVisible(False)
 
             reconBox = QtGui.QHBoxLayout()
             reconBox.addWidget(self.recon)
@@ -655,14 +662,16 @@ class Example(QtGui.QMainWindow):
 #==========================
 
       def showSaveHotSpotPos(self):
-            self.tab_widget.removeTab(3)
-            self.tab_widget.insertTab(3,self.createSaveHotspotWidget(),unicode("Save Hotspot"))
+            self.tab_widget.removeTab(1)
+            self.tab_widget.insertTab(1,self.createSaveHotspotWidget(),unicode("Save Hotspot"))
             self.projViewControl.numb=len(self.channelname)
             for j in arange(self.projViewControl.numb):
                   self.projViewControl.combo.addItem(self.channelname[j])
 
             for k in arange(self.projections):
                   self.projViewControl.combo3.addItem(str(k+1))
+
+            self.projViewControl.combo3.setVisible(False)
             
             self.projViewControl.combo.currentIndexChanged.connect(self.saveHotSpotPos)
             self.projViewControl.combo3.currentIndexChanged.connect(self.hotspotProjChanged)
@@ -691,7 +700,7 @@ class Example(QtGui.QMainWindow):
       
       def boxSizeChange(self):
             self.boxSize=self.projViewControl.sld.value()/2*2
-            self.projView.view.ROI.setPos([self.projView.view.projView.iniY-self.boxSize/2,-(self.projView.view.projView.iniX+self.boxSize/2)])
+            self.projView.view.ROI.setPos([int(round(self.projView.view.projView.iniX))-self.boxSize/2,-int(round(self.projView.view.projView.iniY))-self.boxSize/2])
             self.projView.view.ROI.setSize([self.boxSize,self.boxSize])
             self.projView.view.xSize=self.boxSize
             self.projView.view.ySize=self.boxSize
@@ -1000,8 +1009,8 @@ class Example(QtGui.QMainWindow):
 #==========================
 ## This is for Image processing tab
       def showImageProcess(self):
-            self.tab_widget.removeTab(4)
-            self.tab_widget.insertTab(4,self.createImageProcessWidget(),unicode("Image Process"))
+            self.tab_widget.removeTab(0)
+            self.tab_widget.insertTab(0,self.createImageProcessWidget(),unicode("Image Process"))
             self.imgProcessControl.numb=len(self.channelname)
             for j in arange(self.imgProcessControl.numb):
                   self.imgProcessControl.combo1.addItem(self.channelname[j])
@@ -1015,6 +1024,9 @@ class Example(QtGui.QMainWindow):
             self.imgProcessControl.xDownBtn.clicked.connect(self.imgProcessBoxSizeChange)
             self.imgProcessControl.yUpBtn.clicked.connect(self.imgProcessBoxSizeChange)
             self.imgProcessControl.yDownBtn.clicked.connect(self.imgProcessBoxSizeChange)
+
+            self.imgProcessControl.combo2.setVisible(False)
+            
 
             self.imgProcessControl.bgBtn.clicked.connect(self.ipBg)
             self.imgProcessControl.delHotspotBtn.clicked.connect(self.ipDelHotspot)
@@ -1055,16 +1067,17 @@ class Example(QtGui.QMainWindow):
             xSize=self.imgProcessControl.xSize/2*2
             ySize=self.imgProcessControl.ySize/2*2
             self.imgProcess.view.ROI.setSize([xSize, ySize])
-            self.imgProcess.view.ROI.setPos([+int(round(self.imgProcess.view.projView.iniY))-xSize/2,-int(round(self.imgProcess.view.projView.iniX))-ySize/2])
+            self.imgProcess.view.ROI.setPos([int(round(self.imgProcess.view.projView.iniX))-xSize/2,-int(round(self.imgProcess.view.projView.iniY))-ySize/2])
             self.imgProcess.view.xSize=xSize
             self.imgProcess.view.ySize=ySize
+
       def ipBg(self):
             element=self.imgProcessControl.combo1.currentIndex()
             projection = self.imgProcessControl.combo2.currentIndex()
             xSize=self.imgProcessControl.xSize
             ySize=self.imgProcessControl.ySize
                   
-            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniY))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2,
+            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2,
                           int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2]
             #if self.imgProcess.projView.iniX-xSize/2<##$#$#$#$#$#$#$#$
             self.bg = np.average(img)
@@ -1088,8 +1101,8 @@ class Example(QtGui.QMainWindow):
                   temp=normData[i,:,:][...]
                   tempMax=temp.max()
                   tempMin=temp.min()
-                  temp=(temp-tempMin)/tempMax*10
-                  self.data[self.normElement,i,:,:]=temp
+                  temp=(temp-tempMin)/tempMax*1000
+                  self.data[element,i,:,:]=temp
 
 
       def ipCut(self):
@@ -1097,18 +1110,27 @@ class Example(QtGui.QMainWindow):
             projection = self.imgProcessControl.combo2.currentIndex()
             xSize=self.imgProcessControl.xSize
             ySize=self.imgProcessControl.ySize
-            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2,
-                          int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2]
-            print img.shape
+            print xSize, ySize
+            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2,
+                          int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2]
+            print img.shape,round(self.imgProcess.view.projView.iniX),round(self.imgProcess.view.projView.iniY)
             self.temp_data=zeros([len(self.channelname),self.projections,img.shape[0],img.shape[1]])
             print self.data.shape
             for i in arange(self.projections):
                   for j in arange(len(self.channelname)):
 
-                        self.temp_data[j,i,:,:]= self.data[j,i, int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2,
-                                int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2]
+                        self.temp_data[j,i,:,:]= self.data[j,i, int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2,
+                                int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2]
             print "done"
             self.data=self.temp_data
+
+      def ipWiener(self):
+            element=self.imgProcessControl.combo1.currentIndex()
+            for i in arange(self.projections):
+                  img=self.data[element, i,:,:]
+                  img[np.where(img==0)]=10**(-8)
+                  img_fin = wiener(img)
+                  self.data[element, i,:,:]=img_fin
 
 
       def gauss2D(self,shape=(3,3),sigma=0.5):
@@ -1183,70 +1205,81 @@ class Example(QtGui.QMainWindow):
             self.recon.btn.clicked.connect(self.reconstruct)
             self.recon.save.clicked.connect(self.saveRecTiff)
             self.recon.reconvalue=1
+
+
+      def reconMultiply(self):
+            self.rec=self.rec*10
+            self.updateRecon()
+      def reconDivide(self):
+            self.rec=self.rec/10
+            self.updateRecon()
+
+      def updateRecon(self):
+            self.reconProjNumb=self.reconView.sld.value()
+            self.recon.maxText.setText(str(self.rec[self.reconProjNumb,:,:].max()))
+            self.recon.minText.setText(str(self.rec[self.reconProjNumb,:,:].min()))
             
+            self.reconView.view.projView.setImage(self.rec[self.reconProjNumb,:,:])
+
+
 
 
       
       def runReconstruct(self):
-            self.tab_widget.removeTab(2)
-            self.tab_widget.insertTab(2,self.createReconWidget(),unicode("Reconstruction"))
+            self.tab_widget.removeTab(3)
+            self.tab_widget.insertTab(3,self.createReconWidget(),unicode("Reconstruction"))
             self.recon.numb=len(self.channelname)
             for j in arange(self.recon.numb):
                   self.recon.combo.addItem(self.channelname[j])
             self.recon.show()
             self.recon.btn.setText("Reconstruction")
-            self.recon.lcd.setText=str(self.p1[2])
+            self.recon.lcd.setText(str(self.p1[2]))
             self.recon.btn.clicked.connect(self.reconstruct)
             self.recon.save.clicked.connect(self.saveRecTiff)
             self.recon.reconvalue=0
+            self.recon.mulBtn.clicked.connect(self.reconMultiply)
+            self.recon.divBtn.clicked.connect(self.reconDivide)
+            self.recon.maxText.setText("0")
+            self.recon.minText.setText("0")
+            self.reconView.sld.setRange(0,self.data.shape[2]-1)
+            self.reconView.sld.valueChanged.connect(self.reconView.lcd.display)
+            self.reconView.sld.valueChanged.connect(self.updateRecon)
 
-      def reconCenter(self):
-            self.p1[2]=self.recon.sld.value()
+
             
       def reconstruct(self):
             self.recon.lbl.setText("Reconstruction is currently running")
-            self.d= tomopy.xtomo_dataset(log='debug')
             self.reconelement=self.recon.combo.currentIndex()
-            self.d.data=self.data[self.reconelement,:,:,:]
-            self.d.data[self.d.data==inf]=0.00001
-            self.d.data[np.isnan(self.d.data)]=0.00001
+            self.recData=self.data[self.reconelement,:,:,:]
+            self.recData[self.recData==inf]=0.00001
+            self.recData[np.isnan(self.recData)]=0.00001
+            #self.recData = tomopy.normalize_bg(self.recData)
             
-            ###TEMP
-            if self.recon.reconvalue==0:
-                  self.d.data = (np.exp(-0.0001*self.d.data)).astype('float32')
-            else:
-                  print "transmission"
-            #self.d.center=128
-            ###TEMP
-            self.d.center=float(self.recon.lcd.text())
-            self.d.theta=self.theta
+            self.recCenter=float(self.recon.lcd.text())
+            beta=float(self.recon.beta.text())
+            delta=float(self.recon.delta.text())
+            num_iter =int(self.recon.iters.text())
+
+            print "working fine"
             b=time.time()
             if self.recon.method.currentIndex()==0:
-                  self.d.dataset(self.d.data, theta=self.theta*np.pi/180)
-                  #self.d.optimize_center()
-                  self.d.mlem(iters=int(self.recon.iters.text()))
+                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='mlem', center=np.array(self.recCetner, dtype=float32), num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==1:
-                  self.d.dataset(self.d.data, theta=self.theta)
-                  #self.d.optimize_center()
-                  self.d.gridrec()
+                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='gridrec',
+                                     emission=True)
             elif self.recon.method.currentIndex()==2:
-                  self.d.dataset(self.d.data, theta=self.theta*np.pi/180)
-                  #self.d.optimize_center()
-                  self.d.art()
+                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='art',
+                                     num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==3:
-                  self.d.dataset(self.d.data, theta=self.theta*np.pi/180)
-                  #self.d.optimize_center()
-                  self.d.pml(iters=int(self.recon.iters.text()),beta=float(self.recon.beta.text()))
-            a=time.time()
-            print b-a
-                  
-            print self.d.center
+                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='pml_hybrid',
+                                     reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
 
-            print self.d.theta
-            self.d.data_recon[isnan(self.d.data_recon)]=0.000001
-            self.d.data_recon[self.d.data_recon==inf]=0.00001
-            self.d.data_recon[self.d.data_recon==-inf]=0.00001
-            self.reconView.setImage(self.d.data_recon)
+            a=time.time()
+            print a-b
+            
+
+            self.reconProjNumb=self.projView.sld.value()
+            self.reconView.view.projView.setImage(self.rec[self.reconProjNumb,:,:])
             self.reconView.setWindowTitle("Slices of reconstructed model")
             self.recon.lbl.setText("Done")
             self.recon.save.setHidden(False)
@@ -1259,7 +1292,7 @@ class Example(QtGui.QMainWindow):
                   if self.savedir=="":
                         raise IndexError
                   print self.savedir
-                  tomopy.xtomo_writer(self.d.data_recon,self.savedir,axis=0,digits=4)
+                  tomopy.xtomo_writer(self.rec,self.savedir,axis=0,digits=4)
             except IndexError:
                   print "type the header name"
 #=============================
@@ -1442,14 +1475,14 @@ class Example(QtGui.QMainWindow):
             self.oldData=zeros(self.data.shape)
             self.oldData[...]=self.data[...]
 
-            self.showProjections()
+            self.showImageProcess()
+            self.showSaveHotSpotPos()
             self.showSinogram()
             self.sinogram()
-            self.viewProjections()
             self.runReconstruct()
-            self.showSaveHotSpotPos()
+
             self.projView.view.hotSpotSetNumb=0
-            self.showImageProcess()
+
             
       def convert2array(self):
             y=zeros(len(self.fileNames),dtype=bool)
@@ -1530,14 +1563,9 @@ class Example(QtGui.QMainWindow):
             self.data[self.data==inf]=0.0001
             self.p1=[100,100,self.data.shape[3]/2]
 
-            ######
+            print self.p1
 
-##            global gldata
-##            gldata=self.data
-##            temp=self.data[20,:,:,:]
-##            temp[np.where(temp>5000)]=5000
-            #self.data=self.data*900
-            ######
+
 
             self.alignmentMenu.setEnabled(True)
             self.tab_widget.setEnabled(True)
@@ -1545,25 +1573,16 @@ class Example(QtGui.QMainWindow):
             self.oldData=zeros(self.data.shape)
             self.oldData[...]=self.data[...]
 
-            self.showProjections()
-            self.showSinogram()
-            self.sinogram()
-            self.viewProjections()
-            self.runReconstruct()
+            self.showImageProcess()
             self.showSaveHotSpotPos()
             self.projView.view.hotSpotSetNumb=0
-            self.showImageProcess()
+            self.showSinogram()
+            self.sinogram()
+
+            self.runReconstruct()
+            self.tab_widget.setCurrentIndex(0)
 
             self.updateImages()
-
-##            self.theta=array([-75, -60, -57, -54, -51, -48, -42,-39, -36, -33,-30, -27, -24, -21, -18,
-##                              -15,0,3,6,9,12,15,18,21,24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57, 60,
-##                              63, 66, 69, 72])
-##            self.theta=self.theta[1:]
-            
-#            yy=self.data
-#            yy[isinf(yy)]=1
-#            pg.image(yy[37,:,:,:])
 
       def saveThetaTxt(self):
             try:
@@ -1595,28 +1614,8 @@ class Example(QtGui.QMainWindow):
                   for i in arange(self.data.shape[1]):
                         temp_img=self.data[j,i,:,:]
                         temp=Image.fromarray(temp_img.astype(np.float32))
-                        index=string.rfind(self.fileNames[i],"/")
-                        temp.save(path+self.fileNames[i][index:-3]+"_"+self.channelname[j]+".tif")
-
-      def showProjections(self):
-
-            self.tab_widget.removeTab(0)
-            self.tab_widget.insertTab(0,self.createProjWidget(),unicode("Projections"))
-            self.projection.numb=len(self.channelname)
-            for j in arange(self.projection.numb):
-                  self.projection.combo.addItem(self.channelname[j])
-
-            self.projection.btn.setVisible(True)
-            self.projection.btn.setText("Normalize")
-            self.projection.btn.clicked.connect(self.normalize)
-            self.projection.btn2.setVisible(False)
-            self.projection.sld.setVisible(False)
-            self.projection.lcd.setVisible(False)
-            self.projection.btn3.setVisible(True)
-            self.projection.btn4.setVisible(True)
-            self.projection.btn3.clicked.connect(self.multiplier)
-            self.projection.btn4.clicked.connect(self.divider)
-            self.projection.combo.currentIndexChanged.connect(self.viewProjections)
+                        index=string.rfind(self.selectedFiles[i],"/")
+                        temp.save(path+self.selectedFiles[i][index:-3]+"_"+self.channelname[j]+".tif")
 
       def multiplier(self):
             self.data =10*self.data
@@ -1641,10 +1640,10 @@ class Example(QtGui.QMainWindow):
             
             
             
-      def viewProjections(self):
-            self.projelement=self.projection.combo.currentIndex()
-            projdata=self.data[self.projelement,:,:,:]
-            self.projectionView.setImage(projdata)
+##      def viewProjections(self):
+##            self.projelement=self.projection.combo.currentIndex()
+##            projdata=self.data[self.projelement,:,:,:]
+##            self.projectionView.setImage(projdata)
             
 
 #####!!!!
@@ -1683,8 +1682,8 @@ class Example(QtGui.QMainWindow):
       def showSinogram(self):
             #self.sino = QSelect2()
             #self.sino.setWindowTitle("Sinogram Window")
-            self.tab_widget.removeTab(1)
-            self.tab_widget.insertTab(1,self.createSinoWidget(),unicode("Sinogram"))
+            self.tab_widget.removeTab(2)
+            self.tab_widget.insertTab(2,self.createSinoWidget(),unicode("Sinogram"))
 
             self.sino.numb=len(self.channelname)
             for j in arange(self.sino.numb):
@@ -1712,8 +1711,9 @@ class Example(QtGui.QMainWindow):
 
             sinofig=self.sinogramData
             self.sinogramData[isinf(self.sinogramData)]=0.001
-            self.sinoView.view.projView.setImage(self.sinogramData)
-            self.sinoView.view.projView.scale(1,1)
+            self.sinoView.setImage(self.sinogramData)
+            self.sinoView.getShape()
+   
             
             #self.sinoView.getShape()
             #self.sinoView.setWindowTitle("Sinogram "+self.sino.combo.itemText(self.sinoelement)+" "+str(self.sino.sld.value()))
@@ -1730,8 +1730,8 @@ class Example(QtGui.QMainWindow):
       def updateImages(self):
             self.projView.view.projView.update()
             self.imgProcess.view.projView.updateImage()
-            self.sinoView.view.projView.updateImage()
-            self.projectionView.updateImage()
+            self.sinoView.updateImage()
+
 
             
             
@@ -1886,18 +1886,46 @@ class QSelect3(QtGui.QWidget):
             self.sld=QtGui.QSlider(QtCore.Qt.Horizontal, self)
             self.lcd=QtGui.QLineEdit("0")
             self.lbl=QtGui.QLabel()
+            self.lbl2=QtGui.QLabel("Center")
             self.lbl.setText("")
+
+            centerBox = QtGui.QHBoxLayout()
+            centerBox.addWidget(self.lbl2)
+            centerBox.addWidget(self.lcd)
             self.methodname=["mlem", "gridrec", "art","pml"]
+
+            self.mulBtn = QtGui.QPushButton("x 10")
+            self.divBtn = QtGui.QPushButton("/ 10")
+            mdBox=QtGui.QHBoxLayout()
+            mdBox.addWidget(self.mulBtn)
+            mdBox.addWidget(self.divBtn)
+
+            self.maxLbl = QtGui.QLabel("Max")
+            self.minLbl = QtGui.QLabel("Min")
+            self.maxText = QtGui.QLineEdit()
+            self.minText = QtGui.QLineEdit()
+
+            maxBox = QtGui.QHBoxLayout()
+            minBox = QtGui.QHBoxLayout()
+            maxBox.addWidget(self.maxLbl)
+            maxBox.addWidget(self.maxText)
+            minBox.addWidget(self.minLbl)
+            minBox.addWidget(self.minText)
             
             self.betaName=QtGui.QLabel("Beta")
+            self.deltaName = QtGui.QLabel("Delta")
             self.itersName=QtGui.QLabel("Iteration")
             self.beta = QtGui.QLineEdit("1")
+            self.delta=QtGui.QLineEdit("0.01")
             self.iters = QtGui.QLineEdit("10")
 
             betaBox=QtGui.QHBoxLayout()
+            deltaBox=QtGui.QHBoxLayout()
             itersBox= QtGui.QHBoxLayout()
             betaBox.addWidget(self.betaName)
             betaBox.addWidget(self.beta)
+            deltaBox.addWidget(self.deltaName)
+            deltaBox.addWidget(self.delta)
             itersBox.addWidget(self.itersName)
             itersBox.addWidget(self.iters)
 
@@ -1910,11 +1938,15 @@ class QSelect3(QtGui.QWidget):
             vb.addWidget(self.method)
             vb.addWidget(self.btn)
             vb.addWidget(self.save)
-            vb.addWidget(self.lcd)
+            vb.addLayout(centerBox)
             vb.addWidget(self.sld)
             vb.addWidget(self.lbl)
+            vb.addLayout(mdBox)
+            vb.addLayout(maxBox)
+            vb.addLayout(minBox)
             vb.addLayout(itersBox)
             vb.addLayout(betaBox)
+            vb.addLayout(deltaBox)
             self.setLayout(vb)
 
 class QSelect4(QtGui.QWidget):
@@ -1974,6 +2006,9 @@ class imageProcess(QtGui.QWidget):
       def initUI(self):
             self.xSize = 20
             self.ySize = 20
+
+##            self.mulBtn=QtGui.QPushButton("x10")
+##            self.divBtn=QtGui.QPushButton("/10")
             self.bgBtn=QtGui.QPushButton("Bg Value")
             self.delHotspotBtn = QtGui.QPushButton("Delete HS")
             self.normalizeBtn = QtGui.QPushButton("Normalize")
@@ -2029,21 +2064,23 @@ class imageProcess(QtGui.QWidget):
             vb3.addWidget(xSG)
             vb3.addWidget(ySG)
 
-            hb5=QtGui.QHBoxLayout()
-            hb5.addWidget(self.bgBtn,stretch =0 )
-            hb5.addWidget(self.delHotspotBtn,stretch =0)
-            
+
+
             hb6=QtGui.QHBoxLayout()
-            hb6.addWidget(self.normalizeBtn,stretch =0)
-            hb6.addWidget(self.cutBtn,stretch =0)
+            hb6.addWidget(self.bgBtn,stretch =0 )
+            hb6.addWidget(self.delHotspotBtn,stretch =0)
             
             hb7=QtGui.QHBoxLayout()
-            hb7.addWidget(self.gaussian33Btn,stretch =0)
-            hb7.addWidget(self.gaussian55Btn,stretch =0)
+            hb7.addWidget(self.normalizeBtn,stretch =0)
+            hb7.addWidget(self.cutBtn,stretch =0)
             
-            vb3.addLayout(hb5)
+            hb8=QtGui.QHBoxLayout()
+            hb8.addWidget(self.gaussian33Btn,stretch =0)
+            hb8.addWidget(self.gaussian55Btn,stretch =0)
+            
             vb3.addLayout(hb6)
             vb3.addLayout(hb7)
+            vb3.addLayout(hb8)
  
 
             self.setLayout(vb3)
@@ -2076,9 +2113,8 @@ class IView(pg.ImageView):
     
       def __init__(self):
             super(IView, self).__init__()
-        
+            self.imageItem=pg.ImageItem()
             self.initUI()
-
             self.hotSpotNumb=0
         
       def initUI(self):
@@ -2126,6 +2162,7 @@ class IView(pg.ImageView):
 ##                  if self.hotSpotNumb<self.data.shape[0]-1:
 ##                        self.hotSpotNumb+=1
 ##                        self.setImage(self.data[self.hotSpotNumb,:,:])
+
                   
       def getMousePos(self):
             numb=self.imageItem.iniX
@@ -2167,7 +2204,7 @@ class IView2(pg.GraphicsLayoutWidget):
 ##            self.addItem(self.hist)
       
       def mouseReleaseEvent(self,ev):
-            self.ROI.setPos([self.projView.iniY-self.xSize/2,-self.projView.iniX-self.ySize/2])
+            self.ROI.setPos([self.projView.iniX-self.xSize/2,-self.projView.iniY-self.ySize/2])
 
       def keyPressEvent(self, ev):
 ##            if ev.key() == QtCore.Qt.Key_M:
@@ -2258,26 +2295,6 @@ def main():
     
       app = QtGui.QApplication(sys.argv)
       ex = Example()
-      sys.exit(app.exec_())
-
-def main2():
-      img=np.asarray(Image.open("/Users/youngpyohong/Documents/Work/Python/"
-                                +"autocorrection_sinogram/mod_sino.tif"),dtype=np.float32)     
-      app = QtGui.QApplication(sys.argv)
-      ex = Example2("why")
-      sys.exit(app.exec_())
-
-def main3():
-      data = np.random.normal(size=(100, 200))
-      data[20:80, 20:80] += 2.
-      data = pg.gaussianFilter(data, (3, 3))
-      data += np.random.normal(size=(100, 200)) * 0.1
-      app= QtGui.QApplication(sys.argv)
-
-      ex = IView3()
-      ex.a.projView.setImage(data)
-      ex.b.setImageItem(ex.a.projView)
-      print dir(ex.b)
       sys.exit(app.exec_())
 
 if __name__ == '__main__':

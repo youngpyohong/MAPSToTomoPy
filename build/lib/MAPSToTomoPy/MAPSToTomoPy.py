@@ -1263,8 +1263,7 @@ class Example(QtGui.QMainWindow):
             print "working fine"
             b=time.time()
             if self.recon.method.currentIndex()==0:
-                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='mlem',
-                                     num_iter=num_iter, emission=True)
+                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='mlem', center=np.array(self.recCetner, dtype=float32), num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==1:
                   self.rec = tomopy.recon(self.recData, self.theta, algorithm='gridrec',
                                      emission=True)

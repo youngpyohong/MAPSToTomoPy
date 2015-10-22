@@ -1,0 +1,11 @@
+Metadata-Version: 1.1
+Name: MAPSToTomoPy
+Version: 0.1
+Summary: Convert MAPS HDF5 files to Scientific Data Exchange format
+Home-page: github.com/djvine/maps_data_exchange
+Author: David J. Vine
+Author-email: djvine@gmail.com
+License: UNKNOWN
+Download-URL: https://github.com/djvine/maps_data_exchange.git
+Description: UNKNOWN
+Platform: UNKNOWN
