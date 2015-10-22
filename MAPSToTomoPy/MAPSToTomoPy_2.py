@@ -217,10 +217,11 @@ class Example(QtGui.QMainWindow):
             toolbar.addAction(convertAction)
             toolbar.addAction(saveSinogramAction)
             toolbar.setVisible(False)
-
-            add=0
+            
+            add = 0
             if platform == "win32":
-                  add=50
+                add = 50
+  
             self.setGeometry(add,add, 1100+add,500+add)
             self.setWindowTitle('Maps_To_Tomopy')    
             self.show()
@@ -1263,11 +1264,13 @@ class Example(QtGui.QMainWindow):
             beta=float(self.recon.beta.text())
             delta=float(self.recon.delta.text())
             num_iter =int(self.recon.iters.text())
+            self.theta=self.theta*np.pi/180
+            print self.theta
 
             print "working fine"
             b=time.time()
             if self.recon.method.currentIndex()==0:
-                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='mlem', center=np.array(self.recCetner, dtype=float32), num_iter=num_iter, emission=True)
+                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='mlem', center=np.array(self.recCenter, dtype=float32), num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==1:
                   self.rec = tomopy.recon(self.recData, self.theta, algorithm='gridrec',
                                      emission=True)
@@ -1275,8 +1278,9 @@ class Example(QtGui.QMainWindow):
                   self.rec = tomopy.recon(self.recData, self.theta, algorithm='art',
                                      num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==3:
-                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='pml_hybrid',
-                                     reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
+                  print "you are here"
+                  self.rec = tomopy.recon(self.recData, self.theta, algorithm='pml_hybrid', center=np.array(self.recCenter, dtype=float32),
+                                     reg_par=np.array([100,1],dtype=np.float32), num_iter=num_iter, emission=True)
 
             a=time.time()
             print a-b
@@ -1296,7 +1300,7 @@ class Example(QtGui.QMainWindow):
                   if self.savedir=="":
                         raise IndexError
                   print self.savedir
-                  tomopy.xtomo_writer(self.rec,self.savedir,axis=0,digits=4)
+                  tomopy.write_tiff_stack(self.rec,fname=self.savedir)
             except IndexError:
                   print "type the header name"
 #=============================
@@ -1394,7 +1398,7 @@ class Example(QtGui.QMainWindow):
             try:  
                   fileNametemp = QtGui.QFileDialog.getOpenFileNames(self, "Open File",
                                                                 QtCore.QDir.currentPath(),filter="h5 (*.h5)")
- 
+                  global RH2
                   self.fileNames=str(fileNametemp.join("\n")).split("\n")
                   if self.fileNames == [""]:
                         raise IndexError
