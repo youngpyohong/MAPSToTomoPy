@@ -248,7 +248,7 @@ class Example(QtGui.QMainWindow):
 
             os.chdir(original_path)
             '''
-            self.selectElement()
+            self.selectElementShow()
       def callW2(self):
             self.manual=Manual()
             self.manual.show()
@@ -1286,10 +1286,13 @@ class Example(QtGui.QMainWindow):
                   self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='art',
                                      num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==3:
-                  print "you are here"
                   self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='pml_hybrid', center=np.array(self.recCenter, dtype=float32),
                                      reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
+            elif self.recon.method.currentIndex()==4:
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='pml_quad', center=np.array(self.recCenter, dtype=float32),
+                                     reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
 
+                  
             a=time.time()
             print a-b
             
@@ -1376,10 +1379,57 @@ class Example(QtGui.QMainWindow):
             self.x.show()
       def selectElement(self):
             self.element=QSelect()
-            for i in arange(len(self.channelname)):
-                  self.element.button[i].setText(self.channelname[i])
+            f=h5py.File(os.path.abspath(self.fileNames[0]),"r")
+
+            try:
+                  self.channelnameTemp=list(f[self.ImageTag]["images_names"])
+                  self.dataTag="images"
+
+                  self.channels,self.y,self.x=f[self.ImageTag]["images"].shape
+            except KeyError:
+                  try:
+                        self.dataTag="data"
+                        self.channelnameTemp=list(f[self.ImageTag]["channel_names"])
+                        self.channels,self.y,self.x=f[self.ImageTag]["data"].shape
+                  except KeyError:
+                        self.dataTag="XRF_roi"
+                        global wha
+                        self.channelnameTemp1=f[self.ImageTag]["channel_names"]
+                        wha=self.channelname
+                        print type(self.channelname[...])
+                        self.channelnameTemp2=f[self.ImageTag]["scaler_names"]
+                        self.channels1,self.y,self.x=f[self.ImageTag]["XRF_roi"].shape
+                        self.channels=self.channels1+len(self.channelname2)
+                        self.channelnameTemp=list(self.channelnameTemp1) + list(self.channelnameTemp2)
+                        
+            for i in arange(len(self.channelnameTemp)):
+                  self.element.button[i].setText(self.channelnameTemp[i])
+                  self.element.button[i].setChecked(True)
             self.element.setWindowTitle("Select Element")
-            self.element.show()
+            self.element.setVisible(False)
+
+            self.element.btn2.setText("Deselect All")
+            self.element.btn.setText("set Element")
+            self.element.btn.clicked.connect(self.setElement)
+            self.element.btn2.clicked.connect(self.deselectAllElement)
+            self.element.btn3.setVisible(False)
+
+      def deselectAllElement(self):
+            for i in arange(len(self.channelnameTemp)):
+                  self.element.button[i].setText(self.channelnameTemp[i])
+                  self.element.button[i].setChecked(False)
+      def setElement(self):
+            y=zeros(len(self.channelnameTemp),dtype=bool)
+            k=arange(y.shape[0])
+            for i in arange(len(self.channelnameTemp)):
+                  y[i]=self.element.button[i].isChecked()
+            self.channelname = [self.channelnameTemp[f] for f in k if y[f]]
+            self.channelnamePos = zeros(len(self.channelname))
+            for i in arange(len(self.channelname)):
+                  self.channelnamePos[i] = self.channelnameTemp.index(self.channelname[i])
+      def selectElementShow(self):
+            self.element.setVisible(True)
+                  
 
       def selectFiles(self):
             self.filecheck=QSelect()
@@ -1397,10 +1447,13 @@ class Example(QtGui.QMainWindow):
             self.lbl.setText("Image Tag has been set to \""+self.ImageTag+"\"")
             self.filecheck.setWindowTitle("Select files")
             self.filecheck.show()
+            self.selectElement()
 
             self.optionMenu.setEnabled(True)
+            self.filecheck.btn2.setVisible(True)
             self.filecheck.btn.clicked.connect(self.convert)
             self.filecheck.btn2.clicked.connect(self.selectImageTag)
+            self.filecheck.btn3.clicked.connect(self.selectElementShow)
 
       def openfile(self):
             try:  
@@ -1500,6 +1553,7 @@ class Example(QtGui.QMainWindow):
 
             
       def convert2array(self):
+            self.setElement()
             y=zeros(len(self.fileNames),dtype=bool)
             k=arange(y.shape[0])
             for i in arange(len(self.fileNames)):
@@ -1510,25 +1564,20 @@ class Example(QtGui.QMainWindow):
             ### From first data retrieve channel names, size of the image.            
             f=h5py.File(os.path.abspath(self.selectedFiles[0]),"r")
             try:
-                  self.channelname=f[self.ImageTag]["images_names"]
+                  
                   self.dataTag="images"
 
                   self.channels,self.y,self.x=f[self.ImageTag]["images"].shape
             except KeyError:
                   try:
                         self.dataTag="data"
-                        self.channelname=f[self.ImageTag]["channel_names"]
+                        
                         self.channels,self.y,self.x=f[self.ImageTag]["data"].shape
                   except KeyError:
                         self.dataTag="XRF_roi"
-                        global wha
-                        self.channelname=f[self.ImageTag]["channel_names"]
-                        wha=self.channelname
-                        print type(self.channelname[...])
-                        self.channelname2=f[self.ImageTag]["scaler_names"]
                         self.channels1,self.y,self.x=f[self.ImageTag]["XRF_roi"].shape
                         self.channels=self.channels1+len(self.channelname2)
-                        self.channelname=list()
+                        
             self.projections=len(self.selectedFiles)
             self.theta= zeros(self.projections)
             
@@ -1537,7 +1586,7 @@ class Example(QtGui.QMainWindow):
             self.yshift=zeros(self.projections,int)
 
             
-            
+            self.channels=len(self.channelname)
             if self.dataTag!="XRF_roi":
                   self.data=zeros([self.channels,self.projections,self.y,self.x-2])
                   for i in arange(self.projections):
@@ -1546,9 +1595,11 @@ class Example(QtGui.QMainWindow):
                         thetatemp=f["MAPS"]["extra_pvs_as_csv"][self.thetaPos]
 
                         self.theta[i] = float(thetatemp[thetatemp.rfind(",")+1:])
-                        
-                        for j in arange(self.channels):
-                              self.data[j,i,:,:]=f[self.ImageTag][self.dataTag][j,:,:-2]
+
+      
+                        for j in arange(len(self.channelnamePos)):
+                              pos=self.channelnamePos[j]
+                              self.data[j,i,:,:]=f[self.ImageTag][self.dataTag][pos,:,:-2]
                         print i+1, "projection(s) has/have been converted"
                   print "worked"
 
@@ -1560,15 +1611,16 @@ class Example(QtGui.QMainWindow):
                         thetatemp=f["MAPS"]["extra_pvs_as_csv"][self.thetaPos]
 
                         self.theta[i] = float(thetatemp[thetatemp.rfind(",")+1:])
-                        
-                        for j in arange(self.channels1):
-                              self.data[j,i,:,:]=f[self.ImageTag][self.dataTag][j,:,:-2]
-                              if i==self.projections-1:
-                                    self.channelname.append(f[self.ImageTag]["channel_names"][j])
-                        for k in arange(self.channels-self.channels1):
-                              self.data[j+k,i,:,:]=f[self.ImageTag]["scalers"][k,:,:-2]
-                              if i==self.projections-1:
-                                    self.channelname.append(f[self.ImageTag]["scaler_names"][k])
+
+                        for j in arange(len(self.channelnamePos)):
+                              
+                              if self.channelnamePos[j]<len(list(self.channelnameTemp1)):
+                                    pos=self.channelnamePos[j]
+                                    self.data[j,i,:,:]=f[self.ImageTag][self.dataTag][pos,:,:-2]
+                              else:
+                                    pos = self.channelnamePos[j]-len(list(self.channelnameTemp1))
+                                    self.data[j,i,:,:]=f[self.ImageTag]["scalers"][pos,:,:-2]
+
                         print i+1, "projection(s) has/have been converted"
                   print "worked"
 
@@ -1778,6 +1830,7 @@ class QSelect(QtGui.QWidget):
             self.btn.setText("Save Data in Memory")
             self.btn2=QtGui.QPushButton()
             self.btn2.setText("set Image Tag")
+            self.btn3=QtGui.QPushButton("set Element")
 
             j = 0
             pos=list()
@@ -1798,8 +1851,11 @@ class QSelect(QtGui.QWidget):
             self.vb.addWidget(self.lbl,11)
             self.vb.addWidget(self.lbl2,12)
 
-            self.vb2.addWidget(self.btn2,13)
-            self.vb2.addWidget(self.btn,14)
+            hb = QtGui.QHBoxLayout()
+            hb.addWidget(self.btn2)
+            hb.addWidget(self.btn3)
+            self.vb2.addLayout(hb)
+            self.vb2.addWidget(self.btn)
 
             self.grid.addLayout(self.vb,11,0,1,10)
             self.grid.addLayout(self.vb2,13,3,1,2)
@@ -1867,7 +1923,7 @@ class QSelect3(QtGui.QWidget):
             centerBox = QtGui.QHBoxLayout()
             centerBox.addWidget(self.lbl2)
             centerBox.addWidget(self.lcd)
-            self.methodname=["mlem", "gridrec", "art","pml"]
+            self.methodname=["mlem", "gridrec", "art","pml_hybrid","pml_quad"]
 
             self.mulBtn = QtGui.QPushButton("x 10")
             self.divBtn = QtGui.QPushButton("/ 10")
@@ -1906,7 +1962,7 @@ class QSelect3(QtGui.QWidget):
 
 
             
-            for k in arange(4):
+            for k in arange(len(self.methodname)):
                   self.method.addItem(self.methodname[k])
             vb = QtGui.QVBoxLayout()
             vb.addWidget(self.combo)
