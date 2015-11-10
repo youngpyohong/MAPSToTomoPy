@@ -13,6 +13,7 @@ from pylab import *
 import scipy
 from scipy import ndimage,optimize, signal
 import scipy.ndimage.interpolation as spni
+import scipy.fftpack as spf
 from scipy.signal import *
 from skimage.feature import match_template
 from PIL import Image
@@ -76,7 +77,7 @@ class Example(QtGui.QMainWindow):
             selectElementAction.triggered.connect(self.selectElement)
 
             selectFilesAction=QtGui.QAction('Select Files',self)
-            selectFilesAction.triggered.connect(self.selectFiles)
+            selectFilesAction.triggered.connect(self.selectFilesShow)
 
             saveThetaTxtAction = QtGui.QAction("Save Theta Postion as txt",self)
             saveThetaTxtAction.triggered.connect(self.saveThetaTxt)
@@ -230,6 +231,7 @@ class Example(QtGui.QMainWindow):
             self.setGeometry(add,add, 1100+add,500+add)
             self.setWindowTitle('Maps_To_Tomopy')    
             self.show()
+
 
 #### TEST
       def test1(self):
@@ -603,13 +605,33 @@ class Example(QtGui.QMainWindow):
                         
 
 #==========================
-      def xcorrelate(self,image1,image2,edgeguass_sigma=4):
-            t0,t1=tomopy.algorithms.preprocess.align_projections.cross_correlate(image1,image2)
+      def xcorrelate(self,a,b):
+            fa = spf.fft2(a)
+            fb = spf.fft2(b)
+
+            shape = a.shape
+            c = abs(spf.ifft2(fa*fb.conjugate()))
+            t0, t1 = np.unravel_index(np.argmax(c), a.shape)
+            if t0 > shape[0]//2:
+                  t0 -= shape[0]
+            if t1 > shape[1]//2:
+                  t1 -= shape[1]
+            
             return t0,t1
 
-      def phasecorrelate(self,image1,image2):
-            t0,t1=tomopy.algorithms.preprocess.align_projections.phase_correlate(image1,image2)
+      def phasecorrelate(self,a,b):
+            fa = spf.fft2(a)
+            fb = spf.fft2(b)
+
+            shape = a.shape
+            c = abs(spf.ifft2(fa*fb.conjugate()/(abs(fa)*abs(fb))))
+            t0, t1 = np.unravel_index(np.argmax(c), a.shape)
+            if t0 > shape[0]//2:
+                  t0 -= shape[0]
+            if t1 > shape[1]//2:
+                  t1 -= shape[1]
             return t0,t1
+      
       def edgegauss(self,imagey,sigma=4):
             image=zeros(imagey.shape)
             image[...]=imagey[...]
@@ -1395,11 +1417,10 @@ class Example(QtGui.QMainWindow):
                         self.dataTag="XRF_roi"
                         global wha
                         self.channelnameTemp1=f[self.ImageTag]["channel_names"]
-                        wha=self.channelname
-                        print type(self.channelname[...])
+
                         self.channelnameTemp2=f[self.ImageTag]["scaler_names"]
                         self.channels1,self.y,self.x=f[self.ImageTag]["XRF_roi"].shape
-                        self.channels=self.channels1+len(self.channelname2)
+                        self.channels=self.channels1+len(self.channelnameTemp2)
                         self.channelnameTemp=list(self.channelnameTemp1) + list(self.channelnameTemp2)
                         
             for i in arange(len(self.channelnameTemp)):
@@ -1427,6 +1448,7 @@ class Example(QtGui.QMainWindow):
             self.channelnamePos = zeros(len(self.channelname))
             for i in arange(len(self.channelname)):
                   self.channelnamePos[i] = self.channelnameTemp.index(self.channelname[i])
+            self.element.setVisible(False)
       def selectElementShow(self):
             self.element.setVisible(True)
                   
@@ -1441,12 +1463,14 @@ class Example(QtGui.QMainWindow):
                   thetapos = string.rfind(thetatemp, ",")
                   theta = str(round(float(thetatemp[thetapos+1:])))
                   onlyfilename=self.fileNames[i].rfind("_")
+                  if onlyfilename==-1:
+                        onlyfilename=self.fileNames[i].rfind("/")
                   self.filecheck.button[i].setText(self.fileNames[i][onlyfilename+1:]+" ("+theta+degree_sign+")")
                   self.filecheck.button[i].setChecked(True)
             self.ImageTag=f.items()[-1][0]
             self.lbl.setText("Image Tag has been set to \""+self.ImageTag+"\"")
             self.filecheck.setWindowTitle("Select files")
-            self.filecheck.show()
+
             self.selectElement()
 
             self.optionMenu.setEnabled(True)
@@ -1454,6 +1478,10 @@ class Example(QtGui.QMainWindow):
             self.filecheck.btn.clicked.connect(self.convert)
             self.filecheck.btn2.clicked.connect(self.selectImageTag)
             self.filecheck.btn3.clicked.connect(self.selectElementShow)
+
+
+      def selectFilesShow(self):
+            self.filecheck.setVisible(True)
 
       def openfile(self):
             try:  
@@ -1576,7 +1604,7 @@ class Example(QtGui.QMainWindow):
                   except KeyError:
                         self.dataTag="XRF_roi"
                         self.channels1,self.y,self.x=f[self.ImageTag]["XRF_roi"].shape
-                        self.channels=self.channels1+len(self.channelname2)
+                        self.channels=self.channels1+len(self.channelnameTemp2)
                         
             self.projections=len(self.selectedFiles)
             self.theta= zeros(self.projections)
@@ -1587,8 +1615,23 @@ class Example(QtGui.QMainWindow):
 
             
             self.channels=len(self.channelname)
+
+            #### check the size of the images
+            x=0
+            y=0
+            for i in arange(self.projections):
+                        file_name = os.path.abspath(self.selectedFiles[i])
+                        f = h5py.File(file_name,"r")
+                        dummy, tempY, tempX =f[self.ImageTag][self.dataTag][...].shape
+                        if tempX > x:
+                              x = tempX
+                        if tempY > y:
+                              y = tempY
+            self.x=x
+            self.y=y
+                        
             if self.dataTag!="XRF_roi":
-                  self.data=zeros([self.channels,self.projections,self.y,self.x-2])
+                  self.data=zeros([self.channels,self.projections,self.y,self.x])
                   for i in arange(self.projections):
                         file_name = os.path.abspath(self.selectedFiles[i])
                         f = h5py.File(file_name,"r")
@@ -1599,12 +1642,13 @@ class Example(QtGui.QMainWindow):
       
                         for j in arange(len(self.channelnamePos)):
                               pos=self.channelnamePos[j]
-                              self.data[j,i,:,:]=f[self.ImageTag][self.dataTag][pos,:,:-2]
+                              imgY,imgX = f[self.ImageTag][self.dataTag][0,:,:].shape
+                              self.data[j,i,:imgY,:imgX]=f[self.ImageTag][self.dataTag][pos,:,:]
                         print i+1, "projection(s) has/have been converted"
                   print "worked"
 
             if self.dataTag=="XRF_roi":
-                  self.data=zeros([self.channels,self.projections,self.y,self.x-2])
+                  self.data=zeros([self.channels,self.projections,self.y,self.x])
                   for i in arange(self.projections):
                         file_name = os.path.abspath(self.selectedFiles[i])
                         f = h5py.File(file_name,"r")
@@ -1616,10 +1660,12 @@ class Example(QtGui.QMainWindow):
                               
                               if self.channelnamePos[j]<len(list(self.channelnameTemp1)):
                                     pos=self.channelnamePos[j]
-                                    self.data[j,i,:,:]=f[self.ImageTag][self.dataTag][pos,:,:-2]
+                                    imgY,imgX = f[self.ImageTag][self.dataTag][0,:,:].shape
+                                    self.data[j,i,:imgY,:imgX]=f[self.ImageTag][self.dataTag][pos,:,:]
                               else:
                                     pos = self.channelnamePos[j]-len(list(self.channelnameTemp1))
-                                    self.data[j,i,:,:]=f[self.ImageTag]["scalers"][pos,:,:-2]
+                                    imgY,imgX = f[self.ImageTag][self.dataTag][0,:,:].shape
+                                    self.data[j,i,:imgY,:imgX]=f[self.ImageTag][self.dataTag][pos,:,:]
 
                         print i+1, "projection(s) has/have been converted"
                   print "worked"
