@@ -4,8 +4,13 @@
 
 import sys
 from sys import platform
+import tkFileDialog
+import matplotlib
+matplotlib.use('Qt4Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 import numpy as np
 from pylab import *
 from pylab import *
@@ -20,10 +25,10 @@ import os
 from os.path import isfile, join
 import string
 import pyqtgraph as pg
-from PySide import QtGui, QtCore
+from PySide import QtCore
 from pyqtgraph import QtGui, QtCore
 import h5py
-import tomopy
+#import tomopy
 import time
 #import subpixelshift
 #from subpixelshift import *
@@ -96,9 +101,6 @@ class Example(QtGui.QMainWindow):
             xCorAction = QtGui.QAction("Cross Correlation", self)
             xCorAction.triggered.connect(self.CrossCorrelation_test)
 
-            phaseXCorAction = QtGui.QAction("Phase Correlation", self)
-            phaseXCorAction.triggered.connect(self.CrossCorrelation_test)
-
             alignFromTextAction = QtGui.QAction("Alignment from Text", self)
             alignFromTextAction.triggered.connect(self.alignFromText)
 
@@ -132,17 +134,11 @@ class Example(QtGui.QMainWindow):
             alignHotSpotPosAction = QtGui.QAction("Align Hot Spot pos", self)
             alignHotSpotPosAction.triggered.connect(self.alignHotSpotPos1)
 
-            reorderAction = QtGui.QAction("Reorder", self)
-            reorderAction.triggered.connect(self.reorder_matrix)
+            test1Action = QtGui.QAction("Test 1", self)
+            test1Action.triggered.connect(self.test1)
 
             wienerAction = QtGui.QAction("Wiener", self)
             wienerAction.triggered.connect(self.ipWiener)
-
-            reorderAction = QtGui.QAction("Reorder", self)
-            reorderAction.triggered.connect(self.reorder_matrix)
-
-            externalImageRegAction= QtGui.QAction("External Image Registaration", self)
-            externalImageRegAction.triggered.connect(self.externalImageReg)
 
             ###
             self.frame = QtGui.QFrame()
@@ -153,7 +149,7 @@ class Example(QtGui.QMainWindow):
             self.tab_widget = QtGui.QTabWidget()
             #self.tab_widget.addTab(self.createMessageWidget(), unicode("Message"))
             self.tab_widget.addTab(self.createImageProcessWidget(), unicode("Image Process"))
-            self.tab_widget.addTab(self.createSaveHotspotWidget(),unicode("Alignment"))
+            self.tab_widget.addTab(self.createSaveHotspotWidget(),unicode("Save Hotspot"))
             self.tab_widget.addTab(self.createSinoWidget(), unicode("Sinogram"))
             self.tab_widget.addTab(self.createReconWidget(), unicode("Reconstruction"))
             #self.tab_widget.addTab(self.sinoGroup, unicode("Sinogram"))
@@ -185,8 +181,7 @@ class Example(QtGui.QMainWindow):
             fileMenu.addAction(openFolderAction)
             fileMenu.addAction(openTiffFolderAction)
             fileMenu.addAction(readConfigAction)
-##            fileMenu.addAction(test1Action)
-##            fileMenu.addAction(reorderAction)
+            fileMenu.addAction(test1Action)
             fileMenu.addAction(exitAction)
             fileMenu.addAction(closeAction)
 
@@ -202,12 +197,11 @@ class Example(QtGui.QMainWindow):
             self.alignmentMenu.addAction(runCenterOfMassAction)
             self.alignmentMenu.addAction(alignCenterOfMassAction)
             self.alignmentMenu.addAction(xCorAction)
-            self.alignmentMenu.addAction(phaseXCorAction)
             self.alignmentMenu.addAction(matcherAction)
             self.alignmentMenu.addAction(alignFromTextAction)
             self.alignmentMenu.addAction(saveHotSpotPosAction)
             self.alignmentMenu.addAction(alignHotSpotPosAction)
-            self.alignmentMenu.addAction(externalImageRegAction)
+            self.alignmentMenu.addAction(wienerAction)
             self.alignmentMenu.addAction(restoreAction)
             self.alignmentMenu.setDisabled(True)
 
@@ -217,7 +211,6 @@ class Example(QtGui.QMainWindow):
             #self.afterConversionMenu.addAction(selectElementAction)
             self.afterConversionMenu.addAction(saveSinogramAction)
             self.afterConversionMenu.addAction(runReconstructAction)
-            self.afterConversionMenu.addAction(reorderAction)
             self.afterConversionMenu.setDisabled(True)
 
             toolbar = self.addToolBar('ToolBar')
@@ -245,20 +238,33 @@ class Example(QtGui.QMainWindow):
 
 
 #### TEST
-      def externalImageReg(self):
-
+      def test1(self):
+            self.what=tester()
+            for i in arange(len(self.channelname)):
+                  self.what.combo.addItem(self.channelname[i])
+            self.what.combo.currentIndexChanged.connect(self.test2)
+            
+            '''
             original_path=os.getcwd()
-            fileName = QtGui.QFileDialog.getExistingDirectory(self, "Open Extension",
-                        QtCore.QDir.currentPath())
+            fileName = QtGui.QFileDialog.getOpenFileName(self, "Open Extension",
+                        QtCore.QDir.currentPath(),"Python (*.py)")
             fileName=str(fileName)
-            sys.path.append(os.path.abspath(fileName))
+            pos=fileName.rfind("/")
+            os.chdir(fileName[:pos])
 
-            import imageReg
-            from imageReg import align
-            x=imageReg.align()
+            import test1
+            from test1 import run
+            x=test1.run()
             print x
 
             os.chdir(original_path)
+            '''
+            self.what.show()
+      def test2(self):
+            self.what.view.ax.imshow(self.data[self.what.combo.currentIndex(),0,:,:])
+            self.what.view.draw()
+            
+#####
       def callW2(self):
             self.manual=Manual()
             self.manual.show()
@@ -483,16 +489,17 @@ class Example(QtGui.QMainWindow):
             self.datacopy=zeros(self.data.shape)
             self.datacopy[...]=self.data[...]
             self.data[np.isnan(self.data)]=1
-            self.xcor = AlignWindow()
+            self.xcor = QSelect3()
             self.xcor.setWindowTitle("CrossCorrelation Window")
             self.xcor.numb = len(self.channelname)
             for j in arange(self.xcor.numb):
                   self.xcor.combo.addItem(self.channelname[j])
             self.xcor.btn.setText("Cross Correlation")
-            self.xcor.btn2.setText("Restore")
-            self.xcor.btn.clicked.connect(self.xCor)
-            self.xcor.btn2.clicked.connect(self.restore)
+
             self.xcor.method.setVisible(False)
+            self.xcor.save.setVisible(True)
+            self.xcor.btn.clicked.connect(self.xCor)
+            self.xcor.save.clicked.connect(self.restore)
             self.xcor.show()
       def restore(self):
             self.xshift=zeros(self.projections,int)
@@ -509,17 +516,17 @@ class Example(QtGui.QMainWindow):
             except IndexError:
                   print "type the header name"
       def match_window(self):
-            self.matcher = AlignWindow()
+            self.matcher = QSelect3()
             self.matcher.setWindowTitle("Match template window")
             self.matcher.numb= len(self.channelname)
             for j in arange(self.matcher.numb):
                   self.matcher.combo.addItem(self.channelname[j])
             self.matcher.btn.setText("Match Template")
-
-            self.matcher.btn2.setText("Restore")
+            self.matcher.method.setVisible(False)
+            self.matcher.save.setVisible(True)
+            self.matcher.save.setText("Restore")
             self.matcher.btn.clicked.connect(self.match)
-            self.matcher.btn2.clicked.connect(self.restore)
-            self.xcor.method.setVisible(False)
+            self.matcher.save.clicked.connect(self.restore)
             self.matcher.show()
       def match(self):
             self.matchElem=self.matcher.combo.currentIndex()
@@ -551,9 +558,6 @@ class Example(QtGui.QMainWindow):
                   self.t0,self.t1=self.xcorrelate(img1,img2)
                   self.data[:,i+1,:,:]=np.roll(self.data[:,i+1,:,:],self.t0,axis=1)
                   self.data[:,i+1,:,:]=np.roll(self.data[:,i+1,:,:],self.t1,axis=2)
-                  self.xshift[i+1]+=self.t1
-                  self.yshift[i+1]+=self.t0
-                  
 
                   
 ##                  self.data[:,i+1,:,:]=np.roll(self.data[:,i+1,:,:],shift,axis=2)
@@ -708,7 +712,7 @@ class Example(QtGui.QMainWindow):
 
       def showSaveHotSpotPos(self):
             self.tab_widget.removeTab(1)
-            self.tab_widget.insertTab(1,self.createSaveHotspotWidget(),unicode("Alignment"))
+            self.tab_widget.insertTab(1,self.createSaveHotspotWidget(),unicode("Save Hotspot"))
             self.projViewControl.numb=len(self.channelname)
             for j in arange(self.projViewControl.numb):
                   self.projViewControl.combo.addItem(self.channelname[j])
@@ -1237,7 +1241,7 @@ class Example(QtGui.QMainWindow):
             a.create_dataset("data",data=self.data,compression="gzip")
             a.close()
 
-      
+
 #==========================
 
       def runTransReconstruct(self):
@@ -1335,9 +1339,6 @@ class Example(QtGui.QMainWindow):
             self.recon.lbl.setText("Done")
             self.recon.save.setHidden(False)
 
-      def circular_mask(self):
-            self.rec = tomopy.circ_mask(self.rec, axis=0)
-
       def saveRecTiff(self):
             try:
                   global debugging
@@ -1346,22 +1347,13 @@ class Example(QtGui.QMainWindow):
                   if self.savedir=="":
                         raise IndexError
                   print self.savedir
-                  self.circular_mask() ### temporary
                   tomopy.write_tiff_stack(self.rec,fname=self.savedir)
             except IndexError:
                   print "type the header name"
 #=============================
-
-      def reorder_matrix(self):
-            argsorted= argsort(self.theta)
-            print argsorted, self.theta[argsorted]
-            self.data=self.data[:,argsorted,:,:]
-            print "sorting done"
-
-#=============================
                   
       def selectImageTag(self):
-            self.sit = AlignWindow()
+            self.sit = QSelect3()
             self.sit.setWindowTitle("Seletect Image Tag from h5 file")
             self.sit.data=h5py.File(self.fileNames[0])
             self.sit.firstColumn = self.sit.data.items()
@@ -1380,13 +1372,18 @@ class Example(QtGui.QMainWindow):
             for j in arange(self.sit.secondColumnNum):
                   self.sit.method.addItem(self.sit.secondColumn[j][0])
 
-
+            self.sit.method.setHidden(False)
             
             self.sit.combo.currentIndexChanged.connect(self.selectImageTag_image)
             self.sit.btn.setText("Set")
-            self.sit.btn2.setVisible(False)
-            self.sit.btn.clicked.connect(self.setImageTag)
 
+            self.sit.btn.clicked.connect(self.setImageTag)
+            self.sit.sld.setVisible(False)
+            self.sit.lcd.setVisible(False)
+            self.sit.betaName.setVisible(False)
+            self.sit.beta.setVisible(False)
+            self.sit.itersName.setVisible(False)
+            self.sit.iters.setVisible(False)
             self.sit.show()
 
       def selectImageTag_image(self):
@@ -1405,7 +1402,6 @@ class Example(QtGui.QMainWindow):
             self.ImageTag = str(self.sit.combo.currentText())
             self.lbl.setText("Image Tag has been set to \""+self.ImageTag+"\"")
             print "Image Tag has been set to \"", self.ImageTag, "\""
-            self.sit.setVisible(False)
 #==============================
 
 
@@ -1416,7 +1412,6 @@ class Example(QtGui.QMainWindow):
             self.x=W2(self)
             self.x.textedit.setText("All the files has been converted")
             self.x.btn.setText("OK")
-            self.x.btn.clicked.connect(self.selectFilesHide)
             self.x.show()
       def selectElement(self):
             self.element=QSelect()
@@ -1470,9 +1465,6 @@ class Example(QtGui.QMainWindow):
             self.element.setVisible(False)
       def selectElementShow(self):
             self.element.setVisible(True)
-
-      def selectFilesHide(self):
-            self.filecheck.setVisible(False)
                   
 
       def selectFiles(self):
@@ -1501,12 +1493,7 @@ class Example(QtGui.QMainWindow):
             self.filecheck.btn2.clicked.connect(self.selectImageTag)
             self.filecheck.btn3.clicked.connect(self.selectElementShow)
 
-      def reorder_matrix(self):
-            argsorted= argsort(self.theta)
-            print argsorted, self.theta[argsorted]
-            self.data=self.data[:,argsorted,:,:]
-            print "sorting done"
-            
+
       def selectFilesShow(self):
             self.filecheck.setVisible(True)
 
@@ -1880,25 +1867,6 @@ class W2(QtGui.QDialog):
             self.accept()
 
 ####===============
-
-class AlignWindow(QtGui.QWidget):
-      def __init__(self):
-            super(AlignWindow,self).__init__()
-            self.initUI()
-
-      def initUI(self):
-            self.combo = QtGui.QComboBox(self)
-            self.method = QtGui.QComboBox(self)
-
-            self.btn = QtGui.QPushButton('Click2')
-            self.btn2 = QtGui.QPushButton("Click3")
-            vb = QtGui.QVBoxLayout()
-            vb.addWidget(self.combo)
-            vb.addWidget(self.method)
-            vb.addWidget(self.btn)
-            vb.addWidget(self.btn2)
-            self.setLayout(vb)
-           
 
 class QSelect(QtGui.QWidget):
     
@@ -2434,9 +2402,48 @@ class Manual(QtGui.QWidget):
             self.setLayout(vb)
             self.setGeometry(0,650,1000,150)
             self.setFixedSize(1000,150)
+
+class tester2(FigureCanvas):
+      def __init__(self):
+            
+
+            self.initUI()
+            FigureCanvas.__init__(self,self.fig)
+            self.show()
+
+      def initUI(self):
+            patha="/Volumes/My Passport/Work/2015-3/simulation2/1projection/reconstructed/00/"
+            b=os.listdir(patha)
+
+            img=np.asarray(Image.open(patha+b[10]))
+            self.fig = Figure()
+            self.ax = self.fig.add_subplot(111)
+            self.ax.imshow(img)
+
+            
+
+class tester(pg.QtGui.QWidget):
+      def __init__(self):
+            super(tester, self).__init__()
+        
+            self.initUI()
+
+      def initUI(self):
+            self.show()
+
+            hb1=QtGui.QHBoxLayout()
+
+            self.view=tester2()
+
+
+            self.combo=QtGui.QComboBox()
+            hb1.addWidget(self.combo)
+            hb1.addWidget(self.view)
+            self.setLayout(hb1)
+            self.setGeometry(100,100, 1000,400)
+      
 #########################            
 def main():
-    
       app = QtGui.QApplication(sys.argv)
       ex = Example()
       sys.exit(app.exec_())
