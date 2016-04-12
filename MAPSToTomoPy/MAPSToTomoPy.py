@@ -456,6 +456,7 @@ class Example(QtGui.QMainWindow):
             p0=[100,100,100]
             self.p1,success = optimize.leastsq(self.errfunc,p0[:],args=(x,self.com))
             self.centerOfMassDiff=self.fitfunc(self.p1,x)-self.com
+            print "here", self.centerOfMassDiff
 
       def fitCenterOfMass2(self,x):
             fitfunc = lambda p,x: p[0]*sin(2*pi/360*(x-p[1]))+self.p1[2]
@@ -757,7 +758,7 @@ class Example(QtGui.QMainWindow):
             self.projViewControl.sld.valueChanged.connect(self.projViewControl.lcd.display)
             self.projViewControl.sld.valueChanged.connect(self.boxSizeChange)
             self.projViewControl.btn.clicked.connect(self.alignHotSpotPos3)
-            self.projViewControl.btn2.clicked.connect(self.alignHotSpotPos3)
+            self.projViewControl.btn2.clicked.connect(self.alignHotSpotPos4)
             self.projViewControl.btn3.clicked.connect(self.alignHotSpotY)
             self.projViewControl.combo2.currentIndexChanged.connect(self.hotSpotSetChanged)
             self.projViewControl.show()
