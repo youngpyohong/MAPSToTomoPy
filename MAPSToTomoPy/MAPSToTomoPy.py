@@ -504,6 +504,7 @@ class Example(QtGui.QMainWindow):
             self.yshift=zeros(self.projections,int)
             self.data=zeros(self.oldData.shape)
             self.data[...]=self.oldData[...]
+            self.projView.view.data=self.data[self.projViewElement,:,:,:]
       def prexCor(self):
             try:
                   self.xcor.savedir=QtGui.QFileDialog.getSaveFileName()
