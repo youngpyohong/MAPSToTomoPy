@@ -147,6 +147,9 @@ class Example(QtGui.QMainWindow):
             externalImageRegAction= QtGui.QAction("External Image Registaration", self)
             externalImageRegAction.triggered.connect(self.externalImageReg)
 
+            openPositionPanelAction = QtGui.QAction("Open Position Panel", self)
+            openPositionPanelAction.triggered.connect(self.openPositionPanel)
+
             ###
             self.frame = QtGui.QFrame()
             self.vl = QtGui.QVBoxLayout()
@@ -198,6 +201,7 @@ class Example(QtGui.QMainWindow):
             
             self.optionMenu.addAction(selectFilesAction)
             self.optionMenu.addAction(selectImageTagAction)
+            self.optionMenu.addAction(openPositionPanelAction)
             self.optionMenu.setDisabled(True)
 
             self.alignmentMenu = menubar.addMenu("Alignment")
@@ -750,6 +754,7 @@ class Example(QtGui.QMainWindow):
                   self.projViewControl.combo3.addItem(str(k+1))
 
             self.projViewControl.combo3.setVisible(False)
+
             
             self.projViewControl.combo.currentIndexChanged.connect(self.saveHotSpotPos)
             self.projViewControl.combo3.currentIndexChanged.connect(self.hotspotProjChanged)
@@ -761,14 +766,19 @@ class Example(QtGui.QMainWindow):
             self.projViewControl.btn.clicked.connect(self.alignHotSpotPos3)
             self.projViewControl.btn2.clicked.connect(self.alignHotSpotPos4)
             self.projViewControl.btn3.clicked.connect(self.alignHotSpotY)
+            self.projViewControl.btn4.clicked.connect(self.clearHotSpotData)
             self.projViewControl.combo2.currentIndexChanged.connect(self.hotSpotSetChanged)
             self.projViewControl.show()
 
+            self.projView.view.hotSpotNumb=0
             self.projView.sld.setRange(0,self.projections-1)
             self.projView.sld.valueChanged.connect(self.projView.lcd.display)
             self.projView.sld.valueChanged.connect(self.hotSpotProjChanged)
             self.testtest=pg.ImageView()
 #########
+
+      def clearHotSpotData(self):
+            self.projView.view.posMat[...]=zeros_like(self.projView.view.posMat)
       def hotspotProjChanged(self):
             1
       def hotSpotProjChanged(self):
@@ -792,7 +802,7 @@ class Example(QtGui.QMainWindow):
 
             
       def saveHotSpotPos(self):
-            self.projView.view.hotSpotNumb=0
+            #self.projView.view.hotSpotNumb=0
             self.projViewElement = self.projViewControl.combo.currentIndex()
             self.projView.view.data=self.data[self.projViewElement,:,:,:]
             self.projView.view.posMat=zeros([5,self.data.shape[1],2]) ## Later change 5 -> how many data are in the combo box.
@@ -853,11 +863,12 @@ class Example(QtGui.QMainWindow):
       ##                  show()
                         add=0
 
+
             add2=0
             for j in arange(self.projections):
                         
                   if self.xPos[j]!=0 and self.yPos[j]!=0:
-                        yyshift=int(round(self.boxSize2-self.hotSpotY[j]-self.yPos[j]+self.yPos[0]))
+                        yyshift=int(round(self.boxSize2-self.hotSpotY[j]-self.yPos[j]+self.yPos[firstPosOfHotSpot]))
 
                         print yyshift
                         self.data[:,j,:,:]=np.roll(self.data[:,j,:,:],
@@ -1055,8 +1066,8 @@ class Example(QtGui.QMainWindow):
             for j in arange(self.projections):
                         
                   if self.xPos[j]!=0 and self.yPos[j]!=0:
-                        yyshift=int(round(self.boxSize2-self.hotSpotY[j]-self.yPos[j]+self.yPos[0]))
-                        xxshift=int(round(self.boxSize2-self.hotSpotX[j]-self.xPos[j]+self.xPos[0]))
+                        yyshift=int(round(self.boxSize2-self.hotSpotY[j]-self.yPos[j]+self.yPos[firstPosOfHotSpot]))
+                        xxshift=int(round(self.boxSize2-self.hotSpotX[j]-self.xPos[j]+self.xPos[firstPosOfHotSpot]))
                         print xxshift, yyshift
                         self.data[:,j,:,:]=np.roll(np.roll(self.data[:,j,:,:],xxshift,axis=2),
                                                    yyshift,axis=1)
@@ -1973,6 +1984,11 @@ class Example(QtGui.QMainWindow):
             self.imgProcess.view.projView.updateImage()
             self.sinoView.view.projView.updateImage()
 
+      def openPositionPanel(self):
+            self.positionPanel = PositionPanel()
+            self.positionPanel.show()
+            self.positionPanel.lbl1 = str(self.projView.view.projView.iniY)
+
 
             
             
@@ -2237,6 +2253,7 @@ class QSelect4(QtGui.QWidget):
             self.btn=QtGui.QPushButton("Hotspots to a line")
             self.btn2=QtGui.QPushButton("Hotspots to a sine curve")
             self.btn3=QtGui.QPushButton("set y")
+            self.btn4=QtGui.QPushButton("Clear hotspot data")
 ##            self.btn = QtGui.QPushButton('Click2')
 ##            self.btn.setText("Sinogram")
 ##            self.btn2 = QtGui.QPushButton("shift data")
@@ -2260,6 +2277,7 @@ class QSelect4(QtGui.QWidget):
             vb.addWidget(self.btn)
             vb.addWidget(self.btn2)
             vb.addWidget(self.btn3)
+            vb.addWidget(self.btn4)
 ##            vb.addWidget(self.lbl)
             self.setLayout(vb)
 
@@ -2375,6 +2393,26 @@ class imageProcess(QtGui.QWidget):
             self.ySize-=1
             self.ySizeTxt.setText(str(self.ySize))
 
+class PositionPanel(QtGui.QWidget):
+      def __init__(self):
+            super(PositionPanel, self).__init__()
+
+            self.initUI()
+  
+      def initUI(self):
+            self.lbl3=QtGui.QLabel("X position")
+            self.lbl4=QtGui.QLabel("Y position")
+            self.lbl1=QtGui.QLabel()
+            self.lbl1.setText("")
+            self.lbl2=QtGui.QLabel()
+            self.lbl2.setText("")
+            vb = QtGui.QVBoxLayout()
+            vb.addWidget(self.lbl3)
+            vb.addWidget(self.lbl1)
+            vb.addWidget(self.lbl4)
+            vb.addWidget(self.lbl2)
+            self.setLayout(vb)
+            self.setGeometry(0,650,1000,150)
 
 class IView(pg.GraphicsLayoutWidget):
     
@@ -2543,6 +2581,20 @@ class IView3(QtGui.QWidget):
       def initUI(self):
             self.show()
 
+            hb3=QtGui.QHBoxLayout()
+            lbl1=QtGui.QLabel("x pos")
+            self.lbl2=QtGui.QLabel("")
+            lbl3=QtGui.QLabel("y pos")
+            self.lbl4=QtGui.QLabel("")
+            btn1=QtGui.QPushButton("position")
+            hb3.addWidget(lbl1)
+            hb3.addWidget(self.lbl2)
+            hb3.addWidget(lbl3)
+            hb3.addWidget(self.lbl4)
+            hb3.addWidget(btn1)
+
+            btn1.clicked.connect(self.updatePanel)
+            
             hb2=QtGui.QHBoxLayout()
             hb1=QtGui.QHBoxLayout()
             vb1=QtGui.QVBoxLayout()
@@ -2554,11 +2606,17 @@ class IView3(QtGui.QWidget):
 
             hb2.addWidget(self.lcd)
             hb2.addWidget(self.sld)
+            vb1.addLayout(hb3)
             vb1.addWidget(self.view)
             vb1.addLayout(hb2)
             hb1.addLayout(vb1)
             hb1.addWidget(self.hist,10)
             self.setLayout(hb1)
+
+      def updatePanel(self):
+            
+            self.lbl2.setText(str(self.view.projView.iniY))
+            self.lbl4.setText(str(self.view.projView.iniX))
 
             
 class Manual(QtGui.QWidget):
@@ -2578,6 +2636,9 @@ class Manual(QtGui.QWidget):
             self.setLayout(vb)
             self.setGeometry(0,650,1000,150)
             self.setFixedSize(1000,150)
+
+
+
 #########################            
 def main():
     
