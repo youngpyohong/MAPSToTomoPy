@@ -147,9 +147,6 @@ class Example(QtGui.QMainWindow):
             externalImageRegAction= QtGui.QAction("External Image Registaration", self)
             externalImageRegAction.triggered.connect(self.externalImageReg)
 
-            openPositionPanelAction = QtGui.QAction("Open Position Panel", self)
-            openPositionPanelAction.triggered.connect(self.openPositionPanel)
-
             ###
             self.frame = QtGui.QFrame()
             self.vl = QtGui.QVBoxLayout()
@@ -201,7 +198,6 @@ class Example(QtGui.QMainWindow):
             
             self.optionMenu.addAction(selectFilesAction)
             self.optionMenu.addAction(selectImageTagAction)
-            self.optionMenu.addAction(openPositionPanelAction)
             self.optionMenu.setDisabled(True)
 
             self.alignmentMenu = menubar.addMenu("Alignment")
@@ -1983,13 +1979,6 @@ class Example(QtGui.QMainWindow):
             self.projView.view.projView.update()
             self.imgProcess.view.projView.updateImage()
             self.sinoView.view.projView.updateImage()
-
-      def openPositionPanel(self):
-            self.positionPanel = PositionPanel()
-            self.positionPanel.show()
-            self.positionPanel.lbl1 = str(self.projView.view.projView.iniY)
-
-
             
             
 
@@ -2066,7 +2055,7 @@ class QSelect(QtGui.QWidget):
         
       def initUI(self):
             names=list()
-            for i in arange(120):
+            for i in arange(100):
                   names.append("")
 
 
@@ -2083,7 +2072,7 @@ class QSelect(QtGui.QWidget):
 
             j = 0
             pos=list()
-            for y in arange(12):
+            for y in arange(10):
                   for x in arange(10):
                         pos.append((x,y))
 
@@ -2393,27 +2382,6 @@ class imageProcess(QtGui.QWidget):
             self.ySize-=1
             self.ySizeTxt.setText(str(self.ySize))
 
-class PositionPanel(QtGui.QWidget):
-      def __init__(self):
-            super(PositionPanel, self).__init__()
-
-            self.initUI()
-  
-      def initUI(self):
-            self.lbl3=QtGui.QLabel("X position")
-            self.lbl4=QtGui.QLabel("Y position")
-            self.lbl1=QtGui.QLabel()
-            self.lbl1.setText("")
-            self.lbl2=QtGui.QLabel()
-            self.lbl2.setText("")
-            vb = QtGui.QVBoxLayout()
-            vb.addWidget(self.lbl3)
-            vb.addWidget(self.lbl1)
-            vb.addWidget(self.lbl4)
-            vb.addWidget(self.lbl2)
-            self.setLayout(vb)
-            self.setGeometry(0,650,1000,150)
-
 class IView(pg.GraphicsLayoutWidget):
     
       def __init__(self):
@@ -2615,8 +2583,8 @@ class IView3(QtGui.QWidget):
 
       def updatePanel(self):
             
-            self.lbl2.setText(str(self.view.projView.iniY))
-            self.lbl4.setText(str(self.view.projView.iniX))
+            self.lbl2.setText(str(self.view.projView.iniX))
+            self.lbl4.setText(str(self.view.projView.iniY))
 
             
 class Manual(QtGui.QWidget):
