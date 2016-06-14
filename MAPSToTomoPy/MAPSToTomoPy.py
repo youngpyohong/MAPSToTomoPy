@@ -2055,7 +2055,7 @@ class QSelect(QtGui.QWidget):
         
       def initUI(self):
             names=list()
-            for i in arange(100):
+            for i in arange(130):
                   names.append("")
 
 
@@ -2072,7 +2072,7 @@ class QSelect(QtGui.QWidget):
 
             j = 0
             pos=list()
-            for y in arange(10):
+            for y in arange(13):
                   for x in arange(10):
                         pos.append((x,y))
 
