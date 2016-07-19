@@ -20,7 +20,7 @@ import os
 from os.path import isfile, join
 import string
 import pyqtgraph as pg
-from PySide import QtGui, QtCore
+#from PySide import QtGui, QtCore
 from pyqtgraph import QtGui, QtCore
 import h5py
 import tomopy
@@ -771,6 +771,8 @@ class Example(QtGui.QMainWindow):
             self.projView.sld.valueChanged.connect(self.projView.lcd.display)
             self.projView.sld.valueChanged.connect(self.hotSpotProjChanged)
             self.testtest=pg.ImageView()
+
+
 #########
 
       def clearHotSpotData(self):
@@ -1272,7 +1274,7 @@ class Example(QtGui.QMainWindow):
                   temp=normData[i,:,:][...]
                   tempMax=temp.max()
                   tempMin=temp.min()
-                  temp=(temp-tempMin)/tempMax*1000
+                  temp=(temp-tempMin)/tempMax*10000
                   self.data[element,i,:,:]=temp
 
 
@@ -1410,11 +1412,14 @@ class Example(QtGui.QMainWindow):
             self.recon.reconvalue=0
             self.recon.mulBtn.clicked.connect(self.reconMultiply)
             self.recon.divBtn.clicked.connect(self.reconDivide)
+            self.recon.cbox.clicked.connect(self.cboxClicked)
             self.recon.maxText.setText("0")
             self.recon.minText.setText("0")
             self.reconView.sld.setRange(0,self.data.shape[2]-1)
             self.reconView.sld.valueChanged.connect(self.reconView.lcd.display)
             self.reconView.sld.valueChanged.connect(self.updateRecon)
+            
+            
 
 
             
@@ -1426,17 +1431,18 @@ class Example(QtGui.QMainWindow):
             self.recData[np.isnan(self.recData)]=0.00001
             #self.recData = tomopy.normalize_bg(self.recData)
             
-            self.recCenter=float(self.recon.lcd.text())
+            self.recCenter=np.array(float(self.recon.lcd.text()), dtype=float32)
             beta=float(self.recon.beta.text())
             delta=float(self.recon.delta.text())
             num_iter =int(self.recon.iters.text())
             print beta, delta, num_iter
 
-
+            if self.recon.cbox.isChecked():
+                  self.recCenter=None
             print "working fine"
             b=time.time()
             if self.recon.method.currentIndex()==0:
-                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='mlem', #center=np.array(self.recCenter, dtype=float32),
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='mlem',cetern=self.recCenter,
                                           num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==1:
                   self.rec = tomopy.recon(self.recData, self.theta, algorithm='gridrec',
@@ -1445,10 +1451,10 @@ class Example(QtGui.QMainWindow):
                   self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='art',
                                      num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==3:
-                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='pml_hybrid', #center=np.array(self.recCenter, dtype=float32),
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='pml_hybrid', center=self.recCenter,
                                      reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==4:
-                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='pml_quad', center=None,#center=np.array(self.recCenter, dtype=float32),
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='pml_quad', center=self.recCenter,
                                      reg_par=np.array([beta,delta],dtype=np.float32), num_iter=num_iter, emission=True)
 
                   
@@ -1461,6 +1467,11 @@ class Example(QtGui.QMainWindow):
             self.reconView.setWindowTitle("Slices of reconstructed model")
             self.recon.lbl.setText("Done")
             self.recon.save.setHidden(False)
+      def cboxClicked(self):
+            if self.recon.cbox.isChecked():
+                  self.recon.lcd.setEnabled(True)
+            else:
+                  self.recon.lcd.setEnabled(False)
 
       def circular_mask(self):
             self.rec = tomopy.circ_mask(self.rec, axis=0)
@@ -1483,6 +1494,7 @@ class Example(QtGui.QMainWindow):
             argsorted= argsort(self.theta)
             print argsorted, self.theta[argsorted]
             self.data=self.data[:,argsorted,:,:]
+            self.projView.view.data=self.data[self.projViewElement,:,:,:]
             print "sorting done"
 
 #=============================
@@ -2155,12 +2167,15 @@ class QSelect3(QtGui.QWidget):
             self.sld=QtGui.QSlider(QtCore.Qt.Horizontal, self)
             self.lcd=QtGui.QLineEdit("0")
             self.lbl=QtGui.QLabel()
+            self.cbox=QtGui.QCheckBox("")
             self.lbl2=QtGui.QLabel("Center")
             self.lbl.setText("")
 
             centerBox = QtGui.QHBoxLayout()
+            centerBox.addWidget(self.cbox)
             centerBox.addWidget(self.lbl2)
             centerBox.addWidget(self.lcd)
+            self.lcd.setEnabled(False)
             self.methodname=["mlem", "gridrec", "art","pml_hybrid","pml_quad"]
 
             self.mulBtn = QtGui.QPushButton("x 10")
@@ -2503,20 +2518,20 @@ class IView2(pg.GraphicsLayoutWidget):
       def keyPressEvent(self, ev):
 ##            if ev.key() == QtCore.Qt.Key_M:
 ##                  self.ROI.setPos([self.projView.iniX-10,self.projView.iniY-10])
-            if ev.key() == QtCore.Qt.Key_N:
-                  if self.hotSpotNumb<self.data.shape[0]:
-                        print "n"
-                        print "Total projections",self.data.shape[0], "current position",self.hotSpotNumb+1,"group number",  self.hotSpotSetNumb+1
-                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,0]=self.projView.iniY
-                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,1]=self.projView.iniX
-                        print self.projView.iniX, self.projView.iniY
-
-                        
-                        self.hotSpotNumb+=1
-                        if self.hotSpotNumb < self.data.shape[0]:
-                              self.projView.setImage(self.data[self.hotSpotNumb,:,:])
-                        else:
-                              print "This is the last projection"
+##            if ev.key() == QtCore.Qt.Key_N:
+##                  if self.hotSpotNumb<self.data.shape[0]:
+##                        print "n"
+##                        print "Total projections",self.data.shape[0], "current position",self.hotSpotNumb+1,"group number",  self.hotSpotSetNumb+1
+##                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,0]=self.projView.iniY
+##                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,1]=self.projView.iniX
+##                        print self.projView.iniX, self.projView.iniY
+##
+##                        
+##                        self.hotSpotNumb+=1
+##                        if self.hotSpotNumb < self.data.shape[0]:
+##                              self.projView.setImage(self.data[self.hotSpotNumb,:,:])
+##                        else:
+##                              print "This is the last projection"
 
 
             if ev.key() ==QtCore.Qt.Key_S:
@@ -2581,11 +2596,16 @@ class IView3(QtGui.QWidget):
             hb1.addWidget(self.hist,10)
             self.setLayout(hb1)
 
+
+      def keyPressEvent(self, ev):
+            if ev.key()==QtCore.Qt.Key_N:
+                  self.sld.setValue(self.sld.value+1)
+                  print "Yes"
       def updatePanel(self):
             
             self.lbl2.setText(str(self.view.projView.iniX))
             self.lbl4.setText(str(self.view.projView.iniY))
-
+      
             
 class Manual(QtGui.QWidget):
       def __init__(self):
