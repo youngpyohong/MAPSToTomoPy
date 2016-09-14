@@ -449,14 +449,16 @@ class Example(QtGui.QMainWindow):
                   numb=float(sum(temp2))/numb2
                   self.com[i]=numb
 
-            
       def fitCenterOfMass(self,x):
-            self.fitfunc = lambda p,x: p[0]*sin(2*pi/360*(x-p[1]))+p[2]
-            self.errfunc = lambda p,x,y: self.fitfunc(p,x)-y
-            p0=[100,100,100]
-            self.p1,success = optimize.leastsq(self.errfunc,p0[:],args=(x,self.com))
-            self.centerOfMassDiff=self.fitfunc(self.p1,x)-self.com
-            print "here", self.centerOfMassDiff
+            self.centerOfMassDiff=self.com[0]-self.com
+            
+##      def fitCenterOfMass(self,x):
+##            self.fitfunc = lambda p,x: p[0]*sin(2*pi/360*(x-p[1]))+p[2]
+##            self.errfunc = lambda p,x,y: self.fitfunc(p,x)-y
+##            p0=[100,100,100]
+##            self.p1,success = optimize.leastsq(self.errfunc,p0[:],args=(x,self.com))
+##            self.centerOfMassDiff=self.fitfunc(self.p1,x)-self.com
+##            print "here", self.centerOfMassDiff
 
       def fitCenterOfMass2(self,x):
             fitfunc = lambda p,x: p[0]*sin(2*pi/360*(x-p[1]))+self.p1[2]
@@ -1250,8 +1252,8 @@ class Example(QtGui.QMainWindow):
             xSize=self.imgProcessControl.xSize
             ySize=self.imgProcessControl.ySize
                   
-            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2,
-                          int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2]
+            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2,
+                          int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2]
             #if self.imgProcess.projView.iniX-xSize/2<##$#$#$#$#$#$#$#$
             self.bg = np.average(img)
             print self.bg
@@ -1260,10 +1262,10 @@ class Example(QtGui.QMainWindow):
             projection = self.imgProcessControl.combo2.currentIndex()
             xSize=self.imgProcessControl.xSize
             ySize=self.imgProcessControl.ySize
-            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2,
-                          int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2]
-            self.data[element,projection, int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2,
-                          int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2]=ones(img.shape,dtype=img.dtype)*self.bg
+            img=self.data[element,projection, int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2,
+                          int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2]
+            self.data[element,projection, int(round(self.imgProcess.view.projView.iniY))-ySize/2:int(round(self.imgProcess.view.projView.iniY))+ySize/2,
+                          int(round(self.imgProcess.view.projView.iniX))-xSize/2:int(round(self.imgProcess.view.projView.iniX))+xSize/2]=ones(img.shape,dtype=img.dtype)*self.bg
 
             self.imgProcess.view.projView.setImage(self.data[element,projection,:,:])
       def ipNormalize(self):
@@ -1418,6 +1420,12 @@ class Example(QtGui.QMainWindow):
             self.reconView.sld.setRange(0,self.data.shape[2]-1)
             self.reconView.sld.valueChanged.connect(self.reconView.lcd.display)
             self.reconView.sld.valueChanged.connect(self.updateRecon)
+
+            self.recon.threshBtn.clicked.connect(self.threshold)
+
+      def threshold(self):
+            threshValue=float(self.recon.threshLe.text())
+            self.rec[np.where(self.rec<=threshValue)]=0 #np.min(self.rec)
             
             
 
@@ -1442,7 +1450,7 @@ class Example(QtGui.QMainWindow):
             print "working fine"
             b=time.time()
             if self.recon.method.currentIndex()==0:
-                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='mlem',cetern=self.recCenter,
+                  self.rec = tomopy.recon(self.recData, self.theta*np.pi/180, algorithm='mlem',center=self.recCenter,
                                           num_iter=num_iter, emission=True)
             elif self.recon.method.currentIndex()==1:
                   self.rec = tomopy.recon(self.recData, self.theta, algorithm='gridrec',
@@ -1726,6 +1734,7 @@ class Example(QtGui.QMainWindow):
             read = f.readlines()
 
             for i in arange(self.projections):
+                  print i
                   tempy,tempx = np.asarray(Image.open(str(self.tiffNames[i])),dtype=float32).shape
                   if tempy>self.y:
                           self.y=tempy
@@ -1733,6 +1742,7 @@ class Example(QtGui.QMainWindow):
                           self.x=tempx
             self.data=zeros([1,self.projections,self.y,self.x])
             for i in arange(self.projections):
+                  print i
                   tempy,tempx=np.asarray(Image.open(str(self.tiffNames[i])),dtype=float32).shape
                   self.data[0,i,:tempy,:tempx]=np.asarray(Image.open(str(self.tiffNames[i])),dtype=float32)[...]
                   thetaPos=read[i].find(",")
@@ -1847,8 +1857,8 @@ class Example(QtGui.QMainWindow):
                                     self.data[j,i,:imgY,:imgX]=f[self.ImageTag][self.dataTag][pos,:,:]
                               else:
                                     pos = self.channelnamePos[j]-len(list(self.channelnameTemp1))
-                                    imgY,imgX = f[self.ImageTag][self.dataTag][0,:,:].shape
-                                    self.data[j,i,:imgY,:imgX]=f[self.ImageTag][self.dataTag][pos,:,:]
+                                    imgY,imgX = f[self.ImageTag]["scalers"][0,:,:].shape
+                                    self.data[j,i,:imgY,:imgX]=f[self.ImageTag]["scalers"][pos,:,:]
 
                         print i+1, "projection(s) has/have been converted"
                   print "worked"
@@ -1915,7 +1925,7 @@ class Example(QtGui.QMainWindow):
                         temp=Image.fromarray(temp_img.astype(np.float32))
 
                         index=string.rfind(self.selectedFiles[i],"/")
-                        temp.save(path+self.selectedFiles[i][index:-3]+"_"+self.channelname[j]+".tif")
+                        temp.save(path+self.selectedFiles[i][index:-3]+".tif")
 
       def multiplier(self):
             self.data =10*self.data
@@ -2171,6 +2181,11 @@ class QSelect3(QtGui.QWidget):
             self.lbl2=QtGui.QLabel("Center")
             self.lbl.setText("")
 
+            self.threshLbl=QtGui.QLabel("threshold")
+            self.threshLe=QtGui.QLineEdit("")
+            self.threshBtn=QtGui.QPushButton("Apply")
+            
+
             centerBox = QtGui.QHBoxLayout()
             centerBox.addWidget(self.cbox)
             centerBox.addWidget(self.lbl2)
@@ -2206,12 +2221,17 @@ class QSelect3(QtGui.QWidget):
             betaBox=QtGui.QHBoxLayout()
             deltaBox=QtGui.QHBoxLayout()
             itersBox= QtGui.QHBoxLayout()
+            threshBox=QtGui.QHBoxLayout()
             betaBox.addWidget(self.betaName)
             betaBox.addWidget(self.beta)
             deltaBox.addWidget(self.deltaName)
             deltaBox.addWidget(self.delta)
             itersBox.addWidget(self.itersName)
             itersBox.addWidget(self.iters)
+            threshBox.addWidget(self.threshLbl)
+            threshBox.addWidget(self.threshLe)
+            threshBox.addWidget(self.threshBtn)
+            
 
 
             
@@ -2223,6 +2243,7 @@ class QSelect3(QtGui.QWidget):
             vb.addWidget(self.btn)
             vb.addWidget(self.save)
             vb.addLayout(centerBox)
+            vb.addLayout(threshBox)
             vb.addWidget(self.sld)
             vb.addWidget(self.lbl)
             vb.addLayout(mdBox)
