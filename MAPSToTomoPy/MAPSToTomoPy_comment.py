@@ -2976,6 +2976,24 @@ class IView3(QtGui.QWidget):
             
             self.lbl2.setText(str(self.view.projView.iniX))
             self.lbl4.setText(str(self.view.projView.iniY))
+            
+class W2(QtGui.QDialog):
+      def __init__(self, parent=None):
+            super(W2, self).__init__(parent)
+            self.textedit=QtGui.QLabel()
+            self.textedit.setText("What")
+            self.btn = QtGui.QPushButton('Click2')
+            self.btn.setText("OK")
+            vb = QtGui.QVBoxLayout()
+            vb.addWidget(self.textedit)
+            vb.addWidget(self.btn)
+            
+            self.setLayout(vb)
+            self.btn.clicked.connect(self.fireupWindows3)
+
+      def fireupWindows3(self):
+            
+            self.accept()
       
             
 class Manual(QtGui.QWidget):
