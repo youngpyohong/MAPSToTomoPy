@@ -529,13 +529,13 @@ class Example(QtGui.QMainWindow):
             '''
             self.centerOfMassDiff=self.com[0]-self.com
             
-##      def fitCenterOfMass(self,x):
-##            self.fitfunc = lambda p,x: p[0]*sin(2*pi/360*(x-p[1]))+p[2]
-##            self.errfunc = lambda p,x,y: self.fitfunc(p,x)-y
-##            p0=[100,100,100]
-##            self.p1,success = optimize.leastsq(self.errfunc,p0[:],args=(x,self.com))
-##            self.centerOfMassDiff=self.fitfunc(self.p1,x)-self.com
-##            print "here", self.centerOfMassDiff
+      def fitCenterOfMass(self,x):
+            self.fitfunc = lambda p,x: p[0]*sin(2*pi/360*(x-p[1]))+p[2]
+            self.errfunc = lambda p,x,y: self.fitfunc(p,x)-y
+            p0=[100,100,100]
+            self.p1,success = optimize.leastsq(self.errfunc,p0[:],args=(x,self.com))
+            self.centerOfMassDiff=self.fitfunc(self.p1,x)-self.com
+            print "here", self.centerOfMassDiff
 
       def fitCenterOfMass2(self,x):
             '''
@@ -561,7 +561,7 @@ class Example(QtGui.QMainWindow):
             p0=[100,100]
             p2,success = optimize.leastsq(errfunc,p0[:],args=(x,self.com))
             self.centerOfMassDiff=fitfunc(p2,x)-self.com
-            
+                        
 
       def alignCenterOfMass(self):
             '''
@@ -655,6 +655,7 @@ class Example(QtGui.QMainWindow):
             self.matcher.btn2.clicked.connect(self.restore)
             self.xcor.method.setVisible(False)
             self.matcher.show()
+            
       def match(self):
             self.matchElem=self.matcher.combo.currentIndex()
             for i in arange(self.projections-1):
@@ -669,7 +670,7 @@ class Example(QtGui.QMainWindow):
                   print self.xshift[i+1], self.yshift[i+1]
                   self.data[:,i+1,:,:]=np.roll(self.data[:,i+1,:,:], self.xshift[i+1], axis=2)
                   self.data[:,i+1,:,:]=np.roll(self.data[:,i+1,:,:], self.yshift[i+1], axis=1)
-
+            self.alignmentDone()
       def xCor(self):
 ##            self.xcor.savedir="texting"
 ##            f=open(self.xcor.savedir+".txt",'w')
@@ -687,7 +688,7 @@ class Example(QtGui.QMainWindow):
                   self.data[:,i+1,:,:]=np.roll(self.data[:,i+1,:,:],self.t1,axis=2)
                   self.xshift[i+1]+=self.t1
                   self.yshift[i+1]+=self.t0
-                  
+            self.alignmentDone()        
 
                   
 ##                  self.data[:,i+1,:,:]=np.roll(self.data[:,i+1,:,:],shift,axis=2)
@@ -2353,6 +2354,12 @@ class Example(QtGui.QMainWindow):
             self.projView.view.projView.update()
             self.imgProcess.view.projView.updateImage()
             self.sinoView.view.projView.updateImage()
+
+      def alignmentDone(self):
+            '''
+            send message that alignment has been done
+            '''
+            self.lbl.setText("Alignment has been completed")
             
             
 
@@ -2868,20 +2875,20 @@ class IView2(pg.GraphicsLayoutWidget):
       def keyPressEvent(self, ev):
 ##            if ev.key() == QtCore.Qt.Key_M:
 ##                  self.ROI.setPos([self.projView.iniX-10,self.projView.iniY-10])
-##            if ev.key() == QtCore.Qt.Key_N:
-##                  if self.hotSpotNumb<self.data.shape[0]:
-##                        print "n"
-##                        print "Total projections",self.data.shape[0], "current position",self.hotSpotNumb+1,"group number",  self.hotSpotSetNumb+1
-##                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,0]=self.projView.iniY
-##                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,1]=self.projView.iniX
-##                        print self.projView.iniX, self.projView.iniY
-##
-##                        
-##                        self.hotSpotNumb+=1
-##                        if self.hotSpotNumb < self.data.shape[0]:
-##                              self.projView.setImage(self.data[self.hotSpotNumb,:,:])
-##                        else:
-##                              print "This is the last projection"
+            if ev.key() == QtCore.Qt.Key_N:
+                  if self.hotSpotNumb<self.data.shape[0]:
+                        print "n"
+                        print "Total projections",self.data.shape[0], "current position",self.hotSpotNumb+1,"group number",  self.hotSpotSetNumb+1
+                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,0]=self.projView.iniY
+                        self.posMat[self.hotSpotSetNumb,self.hotSpotNumb,1]=self.projView.iniX
+                        print self.projView.iniX, self.projView.iniY
+
+                        
+                        self.hotSpotNumb+=1
+                        if self.hotSpotNumb < self.data.shape[0]:
+                              self.projView.setImage(self.data[self.hotSpotNumb,:,:])
+                        else:
+                              print "This is the last projection"
 
 
             if ev.key() ==QtCore.Qt.Key_S:
@@ -2976,24 +2983,6 @@ class IView3(QtGui.QWidget):
             
             self.lbl2.setText(str(self.view.projView.iniX))
             self.lbl4.setText(str(self.view.projView.iniY))
-            
-class W2(QtGui.QDialog):
-      def __init__(self, parent=None):
-            super(W2, self).__init__(parent)
-            self.textedit=QtGui.QLabel()
-            self.textedit.setText("What")
-            self.btn = QtGui.QPushButton('Click2')
-            self.btn.setText("OK")
-            vb = QtGui.QVBoxLayout()
-            vb.addWidget(self.textedit)
-            vb.addWidget(self.btn)
-            
-            self.setLayout(vb)
-            self.btn.clicked.connect(self.fireupWindows3)
-
-      def fireupWindows3(self):
-            
-            self.accept()
       
             
 class Manual(QtGui.QWidget):
@@ -3016,6 +3005,25 @@ class Manual(QtGui.QWidget):
             self.setLayout(vb)
             self.setGeometry(0,650,1000,150)
             self.setFixedSize(1000,150)
+
+class W2(QtGui.QDialog):
+      def __init__(self, parent=None):
+            super(W2, self).__init__(parent)
+            self.textedit=QtGui.QLabel()
+            self.textedit.setText("What")
+            self.btn = QtGui.QPushButton('Click2')
+            self.btn.setText("OK")
+            vb = QtGui.QVBoxLayout()
+            vb.addWidget(self.textedit)
+            vb.addWidget(self.btn)
+            
+            self.setLayout(vb)
+            self.btn.clicked.connect(self.fireupWindows3)
+
+      def fireupWindows3(self):
+            
+            self.accept()
+
 
 
 
